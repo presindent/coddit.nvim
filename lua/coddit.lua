@@ -38,8 +38,10 @@ Follow these instructions to complete the task:
 
 2. Perform the required task:
    - For code modifications, carefully edit the existing code to meet the prompt's requirements while maintaining the original structure and style where possible.
+   - Existing code may be used for examples or context. Refrain from replacing such code unless specifically asked to.
    - For new code generation, create clean, efficient, and well-commented code that fulfills the prompt's specifications.
    - Ensure that your code follows best practices and conventions for the programming language in use.
+   - Delete the comments you deem unnecessary, including the imperative ones directing you to write code.
 
 3. Provide explanations:
    - If you've made significant changes or additions to the code, include brief comments explaining your modifications.
