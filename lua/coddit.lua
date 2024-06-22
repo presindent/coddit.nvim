@@ -1,5 +1,7 @@
 local M = {}
 
+M.dup_bufnr = -1
+
 local function call_api(prompt)
    local system_prompt =
       [[You are an AI coding assistant integrated into a Neovim editor instance. Your primary role is to assist users with various programming tasks by modifying existing code snippets or generating new code based on given prompts.
@@ -202,6 +204,31 @@ local function duplicate_current_buffer(filepath, filetype)
    return tmp_bufnr
 end
 
+local function open_diff_view(buf1, buf2)
+   vim.cmd("buffer " .. buf1)
+   vim.cmd("wincmd v")
+   vim.cmd("buffer " .. buf2)
+   vim.cmd("wincmd p")
+   vim.cmd("windo diffthis")
+end
+
+function M.close_diff_view()
+   if M.dup_bufnr == -1 then
+      vim.notify("No diff buffer found open.")
+      return
+   end
+   vim.api.nvim_get_current_win()
+   for _, win in ipairs(vim.api.nvim_list_wins()) do
+      local win_bufnr = vim.api.nvim_win_get_buf(win)
+      if win_bufnr == M.dup_bufnr then
+         vim.api.nvim_win_close(win, true)
+      end
+   end
+   vim.api.nvim_buf_delete(M.dup_bufnr, { force = true })
+   vim.cmd("windo diffoff")
+   M.dup_bufnr = -1
+end
+
 function M.call()
    local mode = vim.fn.mode()
    local filetype = vim.bo.filetype
@@ -222,8 +249,8 @@ function M.call()
       local code, error = extract_code_block(response)
       if code then
          vim.notify(code)
-         local dup_bufnr = duplicate_current_buffer(filepath, filetype)
-         if not dup_bufnr or dup_bufnr == -1 then
+         M.dup_bufnr = duplicate_current_buffer(filepath, filetype)
+         if not M.dup_bufnr or M.dup_bufnr == -1 then
             vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
             return
          end
@@ -234,6 +261,8 @@ function M.call()
          end
 
          vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, lines)
+
+         open_diff_view(bufnr, M.dup_bufnr)
       elseif error then
          vim.notify(error, vim.log.levels.ERROR)
       end
