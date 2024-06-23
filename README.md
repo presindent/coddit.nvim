@@ -7,8 +7,8 @@ coddit.nvim is a Neovim plugin to seamlessly harness coding capabilities of LLMs
 <table>
 <tbody>
 <tr>
-<td>Placeholder</td>
-<td>Placeholder</td>
+<td><video src="https://github.com/presindent/coddit.nvim/assets/115044400/70372a6d-93dd-4db7-8f81-baffcd568701"/></td>
+<td><video src="https://github.com/presindent/coddit.nvim/assets/115044400/521b9569-d632-4e06-9169-0e2a37a33727"/></td>
 </tr>
 </tbody>
 </table>
@@ -122,7 +122,7 @@ coddit.select_model(model_name)
 coddit.close_diff_view()
 ```
 
-### Suggested Mappings
+### Recommended Mappings
 
 These keymaps provide convenient access to coddit's main functions:
 
@@ -134,9 +134,9 @@ vim.keymap.set({ "n", "v" }, "<leader>aim", require("coddit").select_model, { de
 
 ## Roadmap
 
-- [ ] Implement support for Ollama.
+- [ ] Implement actions and CLI interaction.
 - [ ] Implement support for browser-based chatbots like ChatGPT.
 
 ## Similar Plugins
 
-This plugin is inspired by [llm.nvim](https://github.com/melbaldove/llm.nvim).
+This plugin is inspired by [llm.nvim](https://github.com/melbaldove/llm.nvim) by [melbaldove](https://github.com/melbaldove).
