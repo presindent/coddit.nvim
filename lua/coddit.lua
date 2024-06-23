@@ -5,8 +5,6 @@ local M = {}
 M.dup_bufnr = -1
 M.main_bufnr = -1
 
-local nui_menu = require("nui.menu")
-
 M.opts = {
    models = {
       ["haiku"] = {
@@ -30,45 +28,22 @@ function M.select_model(model_name)
       if M.opts.models[model_name] then
          M.opts.selected_model = model_name
       else
-         print("Invalid model name. Model not changed.")
+         vim.notify("Invalid model name. Model not changed.", vim.log.levels.ERROR)
       end
-   else
-      local menu_items = {}
-      for name, _ in pairs(M.opts.models) do
-         table.insert(menu_items, nui_menu.item(name))
-      end
-      local menu = nui_menu({
-         position = "50%",
-         size = {
-            width = 25,
-            height = #menu_items,
-         },
-         border = {
-            style = "single",
-            text = {
-               top = "[Choose a model]",
-               top_align = "center",
-            },
-         },
-         win_options = {
-            winhighlight = "Normal:Normal,FloatBorder:Normal",
-         },
-      }, {
-         lines = menu_items,
-         max_width = 20,
-         keymap = {
-            focus_next = { "j", "<Down>", "<Tab>" },
-            focus_prev = { "k", "<Up>", "<S-Tab>" },
-            close = { "<Esc>", "<C-c>" },
-            submit = { "<CR>", "<Space>" },
-         },
-         on_submit = function(item)
-            M.opts.selected_model = item.text
-            print("Selected model: " .. item.text)
-         end,
-      })
-      menu:mount()
+      return
    end
+   local model_names = vim.tbl_keys(M.opts.models)
+   table.sort(model_names)
+   vim.ui.select(model_names, {
+      prompt = "Choose a model:",
+      format_item = function(item)
+         return item .. (item == M.opts.selected_model and " (current)" or "")
+      end,
+   }, function(choice)
+      if choice then
+         M.opts.selected_model = choice
+      end
+   end)
 end
 
 function M.setup(opts)
