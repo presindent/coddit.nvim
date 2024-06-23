@@ -107,7 +107,8 @@ coddit.setup({ ... })
 -- If a visual block is selected, the snippet is communicated to the LLM,
 -- else, the part of the buffer above and including the current cursor row
 -- is communicated.
-coddit.call()
+--- @param show_diff? boolean Skip the diff if false, not if unspecified
+coddit.call(show_diff)
 
 -- Select the model to call when `coddit.call` is invoked. It updates the
 -- `coddit.selected_model` attribute, which may also be specified during
@@ -128,8 +129,13 @@ These keymaps provide convenient access to coddit's main functions:
 
 ```lua
 vim.keymap.set({ "n", "v" }, "<leader>aic", require("coddit").call, { desc = "Invoke coddit" })
-vim.keymap.set({ "n", "v" }, "<leader>aid", require("coddit").close_diff_view, { desc = "Close coddit diffview" })
-vim.keymap.set({ "n", "v" }, "<leader>aim", require("coddit").select_model, { desc = "Select model for coddit" })
+
+vim.keymap.set({ "n", "v" }, "<leader>aiC", function()
+  require("coddit").call(false)
+end, { desc = "Invoke coddit without diff view" })
+
+vim.keymap.set({ "n" }, "<leader>aid", require("coddit").close_diff_view, { desc = "Close coddit diffview" })
+vim.keymap.set({ "n" }, "<leader>aim", require("coddit").select_model, { desc = "Select model for coddit" })
 ```
 
 ## Roadmap
