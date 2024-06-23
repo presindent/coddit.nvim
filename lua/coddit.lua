@@ -1,6 +1,7 @@
 local M = {}
 
 M.dup_bufnr = -1
+M.main_bufnr = -1
 
 M.opts = {
    models = {
@@ -242,10 +243,9 @@ local function extract_code_block(text)
    return text:sub(start_pos + #start_tag + 1, end_pos - 1)
 end
 
----@param filepath string
+---@param bufnr integer
 ---@param filetype string
-local function duplicate_current_buffer(filepath, filetype)
-   local bufnr = vim.fn.bufnr(filepath)
+local function duplicate_buffer(bufnr, filetype)
    if bufnr == -1 then
       vim.notify("Buffer unloaded", vim.log.levels.ERROR)
       return nil
@@ -272,12 +272,21 @@ local function duplicate_current_buffer(filepath, filetype)
    return tmp_bufnr
 end
 
-local function open_diff_view(buf1, buf2)
-   vim.cmd("buffer " .. buf1)
+local function switch_to_buf_win(bufnr)
+   for _, win in ipairs(vim.api.nvim_list_wins()) do
+      if vim.api.nvim_win_get_buf(win) == bufnr then
+         vim.api.nvim_set_current_win(win)
+         return
+      end
+   end
+end
+
+local function open_diff_view()
+   vim.cmd("buffer " .. M.main_bufnr)
    vim.cmd("wincmd v")
-   vim.cmd("buffer " .. buf2)
-   vim.cmd("wincmd p")
+   vim.cmd("buffer " .. M.dup_bufnr)
    vim.cmd("windo diffthis")
+   switch_to_buf_win(M.main_bufnr)
 end
 
 function M.close_diff_view()
@@ -295,13 +304,13 @@ function M.close_diff_view()
    vim.api.nvim_buf_delete(M.dup_bufnr, { force = true })
    vim.cmd("windo diffoff")
    M.dup_bufnr = -1
+   switch_to_buf_win(M.main_bufnr)
 end
 
 function M.call()
    local mode = vim.fn.mode()
    local filetype = vim.bo.filetype
-   local filepath = vim.fn.expand("%:p")
-   local bufnr = vim.fn.bufnr()
+   M.main_bufnr = vim.fn.bufnr()
 
    local is_visual_mode = mode == "v" or mode == "V" or mode == " "
    local start_line, end_line = get_sel_range(is_visual_mode)
@@ -316,7 +325,7 @@ function M.call()
    if response then
       local code, error = extract_code_block(response)
       if code then
-         M.dup_bufnr = duplicate_current_buffer(filepath, filetype)
+         M.dup_bufnr = duplicate_buffer(M.main_bufnr, filetype)
          if not M.dup_bufnr or M.dup_bufnr == -1 then
             vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
             return
@@ -327,9 +336,9 @@ function M.call()
             table.insert(lines, line)
          end
 
-         vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, lines)
+         vim.api.nvim_buf_set_lines(M.main_bufnr, start_line - 1, end_line, false, lines)
 
-         open_diff_view(bufnr, M.dup_bufnr)
+         open_diff_view()
       elseif error then
          vim.notify(error, vim.log.levels.ERROR)
       end
