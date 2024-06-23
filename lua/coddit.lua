@@ -5,6 +5,8 @@ local M = {}
 M.dup_bufnr = -1
 M.main_bufnr = -1
 
+local nui_menu = require("nui.menu")
+
 M.opts = {
    models = {
       ["haiku"] = {
@@ -22,6 +24,52 @@ M.opts = {
    max_tokens = 1024,
    anthropic_version = "2023-06-01",
 }
+
+function M.select_model(model_name)
+   if model_name then
+      if M.opts.models[model_name] then
+         M.opts.selected_model = model_name
+      else
+         print("Invalid model name. Model not changed.")
+      end
+   else
+      local menu_items = {}
+      for name, _ in pairs(M.opts.models) do
+         table.insert(menu_items, nui_menu.item(name))
+      end
+      local menu = nui_menu({
+         position = "50%",
+         size = {
+            width = 25,
+            height = #menu_items,
+         },
+         border = {
+            style = "single",
+            text = {
+               top = "[Choose a model]",
+               top_align = "center",
+            },
+         },
+         win_options = {
+            winhighlight = "Normal:Normal,FloatBorder:Normal",
+         },
+      }, {
+         lines = menu_items,
+         max_width = 20,
+         keymap = {
+            focus_next = { "j", "<Down>", "<Tab>" },
+            focus_prev = { "k", "<Up>", "<S-Tab>" },
+            close = { "<Esc>", "<C-c>" },
+            submit = { "<CR>", "<Space>" },
+         },
+         on_submit = function(item)
+            M.opts.selected_model = item.text
+            print("Selected model: " .. item.text)
+         end,
+      })
+      menu:mount()
+   end
+end
 
 function M.setup(opts)
    opts = opts or {}
