@@ -160,7 +160,12 @@ local function call_api(prompt)
    local system_prompt =
       [[You are an AI coding assistant integrated into a Neovim editor instance. Your primary role is to assist users with various programming tasks by modifying existing code snippets or generating new code based on given prompts.
 
-First, identify the programming language you'll be working with:
+First, identify whether you will be replacing the provided snippet or appending to it. The type may be "append" or "replace".
+<type>
+{{TYPE}}
+</type>
+
+Next, identify the programming language you'll be working with:
 <language>
 {{LANGUAGE}}
 </language>
@@ -187,7 +192,7 @@ Your task is defined by the following prompt:
 Follow these instructions to complete the task:
 
 1. Analyze the inputs:
-   - If both a code snippet and a prompt are provided, focus on modifying the existing code according to the prompt's instructions.
+   - If both a code snippet and a prompt are provided, focus on modifying the existing code or adding to it according to the prompt's instructions and the type of the prompt.
    - If only a code snippet is provided, analyze the comments and annotations to determine the objective. If the objective is unclear, respond with a comment seeking clarification.
    - If only a prompt is provided, generate new code based on the prompt's requirements.
    - If neither a code snippet nor a prompt is provided, respond with a comment asking for more information.
@@ -328,7 +333,14 @@ function M.call()
    -- TODO: Add the ability to add a textual prompt.
    -- TODO: Add the ability to specify more context.
 
-   local prompt = "<language>\n" .. filetype .. "\n</language>\n\n<snippet>\n" .. snippet .. "\n</snippet>"
+   local prompt = "<type>\n"
+      .. (is_visual_mode and "replace" or "append")
+      .. "\n</type>"
+      .. "<language>\n"
+      .. filetype
+      .. "\n</language>\n\n<snippet>\n"
+      .. snippet
+      .. "\n</snippet>"
 
    local response = call_api(prompt)
    if response then
