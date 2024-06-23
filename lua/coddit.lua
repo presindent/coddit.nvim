@@ -5,24 +5,62 @@ local M = {}
 M.dup_bufnr = -1
 M.main_bufnr = -1
 
+---@param api_type "anthropic" | "openai"
+local function default_endpoint(api_type)
+   if api_type == "anthropic" then
+      return "https://api.anthropic.com/v1/messages"
+   elseif api_type == "openai" then
+      return "https://api.openai.com/v1/chat/completions"
+   end
+end
+
+---@class Opts
+---@field models? table<string, {endpoint?: string, model: string, api_type: "anthropic" | "openai", api_key?: string}>
+---@field selected_model? string
+---@field max_tokens? number
+---@field anthropic_version? string
+
+---@type Opts
 M.opts = {
    models = {
       ["haiku"] = {
-         endpoint = "https://api.anthropic.com/v1/messages",
          model = "claude-3-haiku-20240307",
          api_type = "anthropic",
       },
       ["sonnet"] = {
-         endpoint = "https://api.anthropic.com/v1/messages",
          model = "claude-3-5-sonnet-20240620",
          api_type = "anthropic",
       },
+      ["gpt-4o"] = {
+         model = "gpt-4o",
+         api_type = "openai",
+      },
    },
-   selected_model = "sonnet",
+   selected_model = "gpt-4o",
    max_tokens = 1024,
    anthropic_version = "2023-06-01",
 }
 
+---@param opts? Opts Table of configuration options (optional)
+function M.setup(opts)
+   opts = opts or {}
+
+   -- Merge models
+   if opts.models then
+      for k, v in pairs(opts.models) do
+         M.opts.models[k] = v
+      end
+   end
+
+   -- Update other options
+   for k, v in pairs(opts) do
+      if k ~= "models" then
+         M.opts[k] = v
+      end
+   end
+end
+
+--- @param model_name? string
 function M.select_model(model_name)
    if model_name then
       if M.opts.models[model_name] then
@@ -44,24 +82,6 @@ function M.select_model(model_name)
          M.opts.selected_model = choice
       end
    end)
-end
-
-function M.setup(opts)
-   opts = opts or {}
-
-   -- Merge models
-   if opts.models then
-      for k, v in pairs(opts.models) do
-         M.opts.models[k] = v
-      end
-   end
-
-   -- Update other options
-   for k, v in pairs(opts) do
-      if k ~= "models" then
-         M.opts[k] = v
-      end
-   end
 end
 
 local function get_api_payload(model_opts, system_prompt, prompt)
@@ -120,7 +140,7 @@ local function get_headers(model_opts)
 end
 
 local function get_curl_command(model_opts, data)
-   local endpoint = model_opts.endpoint
+   local endpoint = model_opts.endpoint or default_endpoint(model_opts.api_type)
    local data_esc = data:gsub("\\", "\\\\"):gsub('"', '\\"')
 
    local headers = get_headers(model_opts)
