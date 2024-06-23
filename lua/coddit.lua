@@ -261,12 +261,18 @@ Remember, your goal is to provide helpful, accurate, and efficient coding assist
       if model_opts.api_type == "anthropic" then
          if response.content and response.content[1] then
             code = response.content[1].text
+         else
+            vim.notify("Unexpected response from the API.", vim.log.levels.ERROR)
          end
       elseif model_opts.api_type == "openai" then
          if response.choices and response.choices[1] then
             code = response.choices[1].message.content
+         else
+            vim.notify("Unexpected response from the API.", vim.log.levels.ERROR)
          end
       end
+   else
+      vim.notify("No response from the API.", vim.log.levels.ERROR)
    end
    return code
 end
