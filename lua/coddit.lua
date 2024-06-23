@@ -351,6 +351,14 @@ function M.call(show_diff)
    if response then
       local code, error = extract_response_code(response)
       if code then
+         if show_diff then
+            M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
+            if not M.dup_bufnr or M.dup_bufnr == -1 then
+               vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
+               return
+            end
+         end
+
          local lines = {}
          for line in code:gmatch("[^\r\n]+") do
             table.insert(lines, line)
@@ -360,11 +368,6 @@ function M.call(show_diff)
          vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
 
          if show_diff then
-            M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
-            if not M.dup_bufnr or M.dup_bufnr == -1 then
-               vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
-               return
-            end
             open_diff_view()
          end
       elseif error then
