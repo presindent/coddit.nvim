@@ -90,6 +90,10 @@ function M.setup(opts)
 end
 
 local function get_api_payload(model_opts, system_prompt, prompt)
+   if model_opts.get_api_payload then
+      return model_opts.get_api_payload(system_prompt, prompt)
+   end
+
    local base_payload = {
       model = model_opts.model,
       max_tokens = M.opts.max_tokens,
@@ -120,34 +124,41 @@ local function get_api_payload(model_opts, system_prompt, prompt)
    return vim.fn.json_encode(base_payload)
 end
 
-local function get_curl_command(model_opts, data)
-   local endpoint = model_opts.endpoint
-   local data_esc = data:gsub("\\", "\\\\"):gsub('"', '\\"')
+local function get_headers(model_opts)
+   if model_opts.get_headers then
+      return model_opts.get_headers()
+   end
 
-   vim.notify(endpoint)
-
+   local base_headers = {
+      "Content-Type: application/json",
+   }
    if model_opts.api_type == "anthropic" then
-      local api_key = os.getenv("ANTHROPIC_API_KEY")
-      local anthropic_version = model_opts.anthropic_version or M.opts.anthropic_version
-      return string.format(
-         'curl -s %s --header "x-api-key: %s" --header "anthropic-version: %s" --header "content-type: application/json" --data "%s"',
-         endpoint,
-         api_key,
-         anthropic_version,
-         data_esc
-      )
-   elseif model_opts.api_type == "openai" then -- TODO: Test OpenAI API setup.
-      local api_key = os.getenv("OPENAI_API_KEY")
-      return string.format(
-         'curl -s %s --header "Authorization: Bearer %s" --header "Content-Type: application/json" --data "%s"',
-         endpoint,
-         api_key,
-         data_esc
-      )
+      table.insert(base_headers, "X-API-Key: " .. (model_opts.api_key or os.getenv("ANTHROPIC_API_KEY")))
+      table.insert(base_headers, "anthropic-version: " .. (model_opts.anthropic_version or M.opts.anthropic_version))
+   elseif model_opts.api_type == "openai" then
+      table.insert(base_headers, "Authorization: Bearer " .. (model_opts.api_key or os.getenv("OPENAI_API_KEY")))
    else
       vim.notify("Unsupported API type: " .. tostring(model_opts.api_type), vim.log.levels.ERROR)
       return
    end
+   return base_headers
+end
+
+local function get_curl_command(model_opts, data)
+   local endpoint = model_opts.endpoint
+   local data_esc = data:gsub("\\", "\\\\"):gsub('"', '\\"')
+
+   local headers = get_headers(model_opts)
+   if not headers then
+      return
+   end
+   local header_str = table.concat(
+      vim.tbl_map(function(header)
+         return string.format('--header "%s"', header)
+      end, headers),
+      " "
+   )
+   return string.format('curl -s %s %s --data "%s"', endpoint, header_str, data_esc)
 end
 
 local function call_api(prompt)
