@@ -141,7 +141,7 @@ end
 
 local function get_curl_command(model_opts, data)
    local endpoint = model_opts.endpoint or default_endpoint(model_opts.api_type)
-   local data_esc = data:gsub("\\", "\\\\"):gsub('"', '\\"')
+   local data_esc = data:gsub('[\\"$]', "\\%0")
 
    local headers = get_headers(model_opts)
    if not headers then
