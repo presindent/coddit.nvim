@@ -283,7 +283,8 @@ function M.call()
             table.insert(lines, line)
          end
 
-         vim.api.nvim_buf_set_lines(M.main_bufnr, start_line - 1, end_line, false, lines)
+         local repl_start_line = is_visual_mode and start_line or end_line
+         vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
 
          open_diff_view()
       elseif error then
