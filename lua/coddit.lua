@@ -248,7 +248,6 @@ function M.call()
    if response then
       local code, error = extract_code_block(response)
       if code then
-         vim.notify(code)
          M.dup_bufnr = duplicate_current_buffer(filepath, filetype)
          if not M.dup_bufnr or M.dup_bufnr == -1 then
             vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
