@@ -2,6 +2,103 @@ local M = {}
 
 M.dup_bufnr = -1
 
+M.opts = {
+   models = {
+      ["haiku"] = {
+         endpoint = "https://api.anthropic.com/v1/messages",
+         model = "claude-3-haiku-20240307",
+         api_type = "anthropic",
+      },
+      ["sonnet"] = {
+         endpoint = "https://api.anthropic.com/v1/messages",
+         model = "claude-3-5-sonnet-20240620",
+         api_type = "anthropic",
+      },
+   },
+   selected_model = "sonnet",
+   max_tokens = 1024,
+   anthropic_version = "2023-06-01",
+}
+
+function M.setup(opts)
+   opts = opts or {}
+
+   -- Merge models
+   if opts.models then
+      for k, v in pairs(opts.models) do
+         M.opts.models[k] = v
+      end
+   end
+
+   -- Update other options
+   for k, v in pairs(opts) do
+      if k ~= "models" then
+         M.opts[k] = v
+      end
+   end
+end
+
+local function get_api_payload(model_opts, system_prompt, prompt)
+   local base_payload = {
+      model = model_opts.model,
+      max_tokens = M.opts.max_tokens,
+   }
+   if model_opts.api_type == "anthropic" then
+      base_payload.system = system_prompt
+      base_payload.messages = {
+         {
+            role = "user",
+            content = prompt,
+         },
+      }
+   elseif model_opts.api_type == "openai" then
+      base_payload.messages = {
+         {
+            role = "system",
+            content = system_prompt,
+         },
+         {
+            role = "user",
+            content = prompt,
+         },
+      }
+   else
+      vim.notify("Unsupported API type: " .. tostring(model_opts.api_type), vim.log.levels.ERROR)
+      return
+   end
+   return vim.fn.json_encode(base_payload)
+end
+
+local function get_curl_command(model_opts, data)
+   local endpoint = model_opts.endpoint
+   local data_esc = data:gsub("\\", "\\\\"):gsub('"', '\\"')
+
+   vim.notify(endpoint)
+
+   if model_opts.api_type == "anthropic" then
+      local api_key = os.getenv("ANTHROPIC_API_KEY")
+      local anthropic_version = model_opts.anthropic_version or M.opts.anthropic_version
+      return string.format(
+         'curl -s %s --header "x-api-key: %s" --header "anthropic-version: %s" --header "content-type: application/json" --data "%s"',
+         endpoint,
+         api_key,
+         anthropic_version,
+         data_esc
+      )
+   elseif model_opts.api_type == "openai" then -- TODO: Test OpenAI API setup.
+      local api_key = os.getenv("OPENAI_API_KEY")
+      return string.format(
+         'curl -s %s --header "Authorization: Bearer %s" --header "Content-Type: application/json" --data "%s"',
+         endpoint,
+         api_key,
+         data_esc
+      )
+   else
+      vim.notify("Unsupported API type: " .. tostring(model_opts.api_type), vim.log.levels.ERROR)
+      return
+   end
+end
+
 local function call_api(prompt)
    local system_prompt =
       [[You are an AI coding assistant integrated into a Neovim editor instance. Your primary role is to assist users with various programming tasks by modifying existing code snippets or generating new code based on given prompts.
@@ -76,46 +173,17 @@ DO NOT write anything, including courtesies and language artefacts, outside the 
 
 Remember, your goal is to provide helpful, accurate, and efficient coding assistance. Always prioritize code quality, readability, and adherence to the user's requirements.]]
 
-   -- Sample request command (from https://docs.anthropic.com/en/api/messages):
-   --
-   -- curl https://api.anthropic.com/v1/messages \
-   --      --header "x-api-key: $ANTHROPIC_API_KEY" \
-   --      --header "anthropic-version: 2023-06-01" \
-   --      --header "content-type: application/json" \
-   --      --data \
-   -- '{
-   --     "model": "claude-3-5-sonnet-20240620",
-   --     "max_tokens": 1024,
-   --     "messages": [
-   --         {"role": "user", "content": "Hello, world"}
-   --     ]
-   -- }'
+   local model_opts = M.opts.models[M.opts.selected_model]
 
-   -- TODO: Add configuration options for other LLM endpoints.
-   local url = "https://api.anthropic.com/v1/messages"
+   local data = get_api_payload(model_opts, system_prompt, prompt)
+   if not data then
+      return
+   end
 
-   local curl_command = "curl -s "
-      .. url
-      .. ' --header "x-api-key: '
-      .. os.getenv("ANTHROPIC_API_KEY")
-      .. '" --header "anthropic-version: 2023-06-01'
-      .. '" --header "content-type: application/json" --data "'
-      .. vim.fn
-         .json_encode({
-            -- model = "claude-3-5-sonnet-20240620",
-            model = "claude-3-haiku-20240307",
-            system = system_prompt,
-            max_tokens = 1024,
-            messages = {
-               {
-                  role = "user",
-                  content = prompt,
-               },
-            },
-         })
-         :gsub("\\", "\\\\")
-         :gsub('"', '\\"')
-      .. '"'
+   local curl_command = get_curl_command(model_opts, data)
+   if not curl_command then
+      return
+   end
 
    local response_str = vim.fn.system(curl_command)
 
