@@ -209,7 +209,10 @@ Follow these instructions to complete the task:
    - For newly generated code, add comments to explain complex logic or important design decisions.
 
 4. Output format:
-   - Present your final code inside <code> tags.
+   - Present your final code inside <code> tags. DO NOT use markdown code blocks for the code.
+    - If the type of the prompt is "append", just provide the code that needs to be appended.
+    - If the type is "replace" instead, furnish the entire modified code.
+    - Unless asked to, do not write placeholders for the dependencies such as functions not included in the provided context. Simply assume that such functions/symbols exist, unless told otherwise.
    - If you need to provide additional explanations or ask for clarifications, use comments within the code.
    - Use a minimal number of comments, and avoid explaining the obvious parts.
 
@@ -346,7 +349,7 @@ function M.call(show_diff)
 
    local prompt = "<type>\n"
       .. (is_visual_mode and "replace" or "append")
-      .. "\n</type>"
+      .. "\n</type>\n"
       .. "<language>\n"
       .. filetype
       .. "\n</language>\n\n<snippet>\n"
