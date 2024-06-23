@@ -230,12 +230,20 @@ Remember, your goal is to provide helpful, accurate, and efficient coding assist
    end
 
    local response = vim.fn.json_decode(response_str)
-   if response and response.content and response.content[1] then
-      local code = response.content[1].text
-      if code then
-         return code
+
+   local code
+   if response then
+      if model_opts.api_type == "anthropic" then
+         if response.content and response.content[1] then
+            code = response.content[1].text
+         end
+      elseif model_opts.api_type == "openai" then
+         if response.choices and response.choices[1] then
+            code = response.choices[1].message.content
+         end
       end
    end
+   return code
 end
 
 local function get_code_block(start_line, end_line)
