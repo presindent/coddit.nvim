@@ -25,6 +25,7 @@ Add the following table to your lazy.nvim configuration for a default setup usin
 {
   "presindent/coddit.nvim",
   lazy = false,
+  branch = "main",
 }
 ```
 
