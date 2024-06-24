@@ -15,9 +15,9 @@ coddit.nvim is a Neovim plugin to seamlessly harness coding capabilities of LLMs
 
 ## Setup
 
-### Installation
+The following guide is specific to the [lazy.nvim](https://github.com/folke/lazy.nvim) plugin manager.
 
-### [lazy.nvim](https://github.com/folke/lazy.nvim)
+### Installation
 
 Add the following table to your lazy.nvim configuration for a default setup using GPT-4o on OpenAI's API:
 
@@ -108,7 +108,7 @@ coddit.setup({ ... })
 -- If a visual block is selected, the snippet is communicated to the LLM,
 -- else, the part of the buffer above and including the current cursor row
 -- is communicated.
---- @param show_diff? boolean Skip the diff if false, not if unspecified
+---@param show_diff? boolean Skip the diff if false, not if unspecified
 coddit.call(show_diff)
 
 -- Select the model to call when `coddit.call` is invoked. It updates the
@@ -117,7 +117,7 @@ coddit.call(show_diff)
 --
 -- If invoked without the `model_name` argument, it displays a menu to pick
 -- the model from.
---- @param model_name? string
+---@param model_name? string
 coddit.select_model(model_name)
 
 -- Close the diff view if active.
@@ -126,7 +126,7 @@ coddit.close_diff_view()
 
 ### Recommended Mappings
 
-These keymaps provide convenient access to coddit's main functions:
+These keymaps provide convenient access to coddit's main functions. Note that these keymaps are not set by default, you will have to add the following snippet to the `config` function in lazy.nvim config, or in another appropriate configuration file:
 
 ```lua
 vim.keymap.set({ "n", "v" }, "<leader>aic", require("coddit").call, { desc = "Invoke coddit" })
@@ -139,10 +139,17 @@ vim.keymap.set({ "n" }, "<leader>aid", require("coddit").close_diff_view, { desc
 vim.keymap.set({ "n" }, "<leader>aim", require("coddit").select_model, { desc = "Select model for coddit" })
 ```
 
+### Selecting the Model
+
+The API and the keymap discussed above facilitate selecting your favourite LLM on the go.
+
+![select_model](https://github.com/presindent/coddit.nvim/assets/115044400/f68ebca5-a271-428e-bc45-b75153ce8010)
+
 ## Roadmap
 
 - [ ] Implement actions and CLI interaction.
 - [ ] Implement support for browser-based chatbots like ChatGPT.
+- Tracking other enhancements and fixes as [issues](https://github.com/presindent/coddit.nvim/issues).
 
 ## Similar Plugins
 
