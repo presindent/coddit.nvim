@@ -299,7 +299,7 @@ function M.call(show_diff)
          end
 
          local lines = {}
-         for line in code:gmatch("[^\r\n]+") do
+         for line in code:gsub("[\r\n]*$", "\n"):gmatch("([^\r\n]*)[\r\n]") do
             table.insert(lines, line)
          end
 
