@@ -15,10 +15,11 @@ local function default_endpoint(api_type)
 end
 
 ---@class Opts
----@field models? table<string, {endpoint?: string, model: string, api_type: "anthropic" | "openai", api_key?: string}>
+---@field models? table<string, {endpoint?: string, model: string, api_type: "anthropic" | "openai", api_key?: string, system_prompt?: string}>
 ---@field selected_model? string
 ---@field max_tokens? number
 ---@field anthropic_version? string
+---@field system_prompt? string
 
 ---@type Opts
 M.opts = {
@@ -39,6 +40,14 @@ M.opts = {
    selected_model = "gpt-4o",
    max_tokens = 1024,
    anthropic_version = "2023-06-01",
+   system_prompt = [[Determine if the task is "append" or "replace": <type>{{TYPE}}</type>. Identify the programming language: <language>{{LANGUAGE}}</language>.
+      Auto-detect or ask if unspecified. Review the code snippet: <snippet>{{SNIPPET}}</snippet>. Generate new code if no snippet is provided. Consider
+      additional context: <context>{{CONTEXT}}</context>. Follow the task prompt: <prompt>{{PROMPT}}</prompt>. Modify or append based on the prompt,
+      or generate new code. Ask for more information if inputs are unclear. Maintain structure and style. Create clean, efficient, well-commented code.
+      Follow best practices. Remove unnecessary comments. Comment on significant changes. Provide final code inside <code> tags without enclosing in
+      backticks. Provide only appended code if "append". Provide entire modified code if "replace". Assume dependencies exist unless told otherwise. Use
+      comments for explanations or clarifications. Address potential issues and edge cases. Explain issues inside <error> tags if the task is impossible
+      or contradictory. Ask for specific details if needed. Prioritize code quality, readability, and adherence to requirements.]],
 }
 
 ---@param opts? Opts Table of configuration options (optional)
@@ -157,17 +166,9 @@ local function get_curl_command(model_opts, data)
 end
 
 local function call_api(prompt)
-   local system_prompt =
-      [[Determine if the task is "append" or "replace": <type>{{TYPE}}</type>. Identify the programming language: <language>{{LANGUAGE}}</language>.
-      Auto-detect or ask if unspecified. Review the code snippet: <snippet>{{SNIPPET}}</snippet>. Generate new code if no snippet is provided. Consider
-      additional context: <context>{{CONTEXT}}</context>. Follow the task prompt: <prompt>{{PROMPT}}</prompt>. Modify or append based on the prompt,
-      or generate new code. Ask for more information if inputs are unclear. Maintain structure and style. Create clean, efficient, well-commented code.
-      Follow best practices. Remove unnecessary comments. Comment on significant changes. Provide final code inside <code> tags without enclosing in
-      backticks. Provide only appended code if "append". Provide entire modified code if "replace". Assume dependencies exist unless told otherwise. Use
-      comments for explanations or clarifications. Address potential issues and edge cases. Explain issues inside <error> tags if the task is impossible
-      or contradictory. Ask for specific details if needed. Prioritize code quality, readability, and adherence to requirements.]]
-
    local model_opts = M.opts.models[M.opts.selected_model]
+
+   local system_prompt = model_opts.system_prompt or M.opts.system_prompt
 
    local data = get_api_payload(model_opts, system_prompt, prompt)
    if not data then
