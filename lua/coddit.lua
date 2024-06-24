@@ -376,7 +376,7 @@ function M.call(show_diff)
             table.insert(lines, line)
          end
 
-         local repl_start_line = is_visual_mode and start_line or end_line
+         local repl_start_line = is_visual_mode and start_line or end_line + 1
          vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
 
          if show_diff then
