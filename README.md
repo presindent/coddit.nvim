@@ -31,7 +31,7 @@ Add the following table to your lazy.nvim configuration for a default setup usin
 
 ### Customization
 
-For custom model configurations, use this expanded setup:
+For custom model configurations, use an expanded setup such as this:
 
 ```lua
 {
@@ -53,7 +53,7 @@ For custom model configurations, use this expanded setup:
           api_type = "openai",
         },
       },
-      selected_model = "gpt-4o",
+      selected_model = "gpt-4o", -- set this to "sonnet" to use Claude Sonnet 3.5
       max_tokens = 1024,
       anthropic_version = "2023-06-01",
     })
@@ -63,34 +63,45 @@ For custom model configurations, use this expanded setup:
 
 **Note:** coddit.nvim uses `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` environment variables by default for API keys. You may custom keys using `api_key` attribute in a model table during the setup.
 
-You can further configure the headers and API payloads by defining `get_headers` and `get_api_payload` functions for a model. For example,
+You can also define custom API types with their own headers and API payloads by defining `get_headers` and `get_api_payload` functions. You will also have to define an `extract_assistant_response` function to extract the assistants response from the API's JSON response. You can also define these functions for individual models. Here's an example defining `ollama` API type and adding `deepseek-coder` to your options.
 
 ```lua
-{
-  ["llama"] = {
-    get_headers = function()
-      return {
-        "content-type: application/json",
-        ...
-      }
-    end,
-    get_api_payload = function(system_prompt, user_prompt)
-      return {
-        model = "llama3",
-        messages = [
-          {
-            role = "system",
-            content = system_prompt,
-          },
-          {
-            role = "user",
-            content = user_prompt,
-          },
-        ],
-      }
-    end,
+require("coddit").setup({
+  api_types = {
+    ["ollama"] = {
+      endpoint = "http://localhost:11434/api/chat",
+      get_headers = function(model_opts)
+         return { "Content-Type: application/json" }
+      end,
+      get_api_payload = function(prompt, system_prompt, model_opts)
+         return vim.fn.json_encode({
+            model = model_opts.model,
+            stream = false,
+            options = {
+               num_predict = M.opts.max_tokens,
+            },
+            messages = {
+               { role = "system", content = system_prompt },
+               { role = "user", content = prompt },
+            },
+         })
+      end,
+      extract_assistant_response = function(response)
+         local decoded = vim.fn.json_decode(response)
+         if decoded and decoded.message then
+            return decoded.message
+         end
+         return nil
+      end,
+    }
+  },
+  models = {
+    ["deepseek-coder"] = {
+      model = "deepseek-coder",
+      api_type = "ollama",
+    }
   }
-}
+})
 ```
 
 ## Usage
