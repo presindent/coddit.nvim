@@ -2,6 +2,8 @@
 
 coddit.nvim is a Neovim plugin to seamlessly harness coding capabilities of LLMs on your projects. Just select the code and ask away.
 
+> (α) You can now also ask ChatGPT to assist you while coding, directly in Neovim, via [coddit.py](https://github.com/presindent/coddit.py) and [coddit Chrome extension](https://github.com/presindent/coddit-chrome).
+
 ## Showcase
 
 <table>
