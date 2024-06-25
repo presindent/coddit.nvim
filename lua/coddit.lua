@@ -14,8 +14,18 @@ local function default_endpoint(api_type)
    end
 end
 
+---@class ModelOpts
+---@field endpoint? string
+---@field model? string
+---@field api_type? "anthropic" | "openai"
+---@field api_key? string
+---@field system_prompt? string
+---@field anthropic_version? string
+---@field get_headers? fun(): table
+---@field get_api_payload? fun(system_prompt: string|nil, prompt: string): string
+
 ---@class Opts
----@field models? table<string, {endpoint?: string, model: string, api_type: "anthropic" | "openai", api_key?: string, system_prompt?: string}>
+---@field models? table<string, ModelOpts>
 ---@field selected_model? string
 ---@field max_tokens? number
 ---@field anthropic_version? string
@@ -166,6 +176,10 @@ function M.select_model(model_name)
    end)
 end
 
+---@param model_opts ModelOpts
+---@param system_prompt string|nil
+---@param prompt string
+---@return string | nil
 local function get_api_payload(model_opts, system_prompt, prompt)
    if model_opts.get_api_payload then
       return model_opts.get_api_payload(system_prompt, prompt)
@@ -176,31 +190,23 @@ local function get_api_payload(model_opts, system_prompt, prompt)
       max_tokens = M.opts.max_tokens,
    }
    if model_opts.api_type == "anthropic" then
-      base_payload.system = system_prompt
-      base_payload.messages = {
-         {
-            role = "user",
-            content = prompt,
-         },
-      }
+      base_payload.messages = { { role = "user", content = prompt } }
+      if system_prompt then
+         base_payload.system = system_prompt
+      end
    elseif model_opts.api_type == "openai" then
-      base_payload.messages = {
-         {
-            role = "system",
-            content = system_prompt,
-         },
-         {
-            role = "user",
-            content = prompt,
-         },
-      }
+      base_payload.messages = { { role = "user", content = prompt } }
+      if system_prompt then
+         table.insert(base_payload.messages, 1, { role = "system", content = system_prompt })
+      end
    else
-      vim.notify("Unsupported API type: " .. tostring(model_opts.api_type), vim.log.levels.ERROR)
-      return
+      error("Unsupported API type: " .. tostring(model_opts.api_type))
    end
    return vim.fn.json_encode(base_payload)
 end
 
+---@param model_opts ModelOpts
+---@return table|nil
 local function get_headers(model_opts)
    if model_opts.get_headers then
       return model_opts.get_headers()
