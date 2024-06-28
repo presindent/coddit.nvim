@@ -55,9 +55,10 @@ For custom model configurations, use an expanded setup such as this:
           api_type = "openai",
         },
       },
-      selected_model = "gpt-4o", -- set this to "sonnet" to use Claude Sonnet 3.5
+      selected_model = "gpt-4o",  -- set this to "sonnet" to use Claude Sonnet 3.5
       max_tokens = 1024,
       anthropic_version = "2023-06-01",
+      show_diff = true,  -- set this to false to skip diffview
     })
   end,
 }

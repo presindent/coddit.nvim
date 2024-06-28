@@ -30,6 +30,7 @@ M.main_bufnr = -1
 ---@field max_tokens? number
 ---@field anthropic_version? string
 ---@field system_prompt? string
+---@field show_diff? boolean
 
 ---@type Opts
 M.opts = {
@@ -186,6 +187,7 @@ DO NOT write anything, including courtesies and language artefacts, outside the 
 
 Remember, your goal is to provide helpful, accurate, and efficient coding assistance. Always prioritize code quality, readability, and adherence to the user's requirements.
 ]],
+   show_diff = true,
 }
 
 ---@param response string
@@ -371,7 +373,7 @@ end
 ---@param show_diff? boolean
 function M.call(show_diff)
    if show_diff == nil then
-      show_diff = true
+      show_diff = M.opts.show_diff or false
    end
 
    local mode = vim.fn.mode()
