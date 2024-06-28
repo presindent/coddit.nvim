@@ -102,7 +102,7 @@ M.opts = {
          api_type = "openai",
       },
    },
-   selected_model = "gpt-4o",
+   selected_model = "sonnet",
    max_tokens = 1024,
    anthropic_version = "2023-06-01",
    system_prompt = [[
