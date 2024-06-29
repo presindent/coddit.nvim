@@ -1,3 +1,4 @@
+local curl = require("plenary.curl")
 local util = require("util")
 
 local M = {}
@@ -12,19 +13,22 @@ M.main_bufnr = -1
 ---@field api_key? string
 ---@field system_prompt? string
 ---@field anthropic_version? string
----@field get_headers? fun(): string[]
----@field get_api_payload? fun(system_prompt: string|nil, prompt: string): string
----@field extract_assistant_response? fun(response: string): string|nil
+---@field max_tokens? number
+---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
+---@field get_api_payload? fun(prompt: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string
+---@field extract_assistant_response? fun(response: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
 
----@class ApiType
+---@class ApiOpts
 ---@field endpoint string
+---@field api_key? string
 ---@field system_prompt? string
----@field get_headers fun(model_opts?: ModelOpts): string[]
----@field get_api_payload fun(prompt: string, system_prompt?: string, model_opts?: ModelOpts): string
----@field extract_assistant_response fun(response: string, model_opts?: ModelOpts): string|nil
+---@field max_tokens? number
+---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
+---@field get_api_payload fun(prompt: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string
+---@field extract_assistant_response fun(response: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
 
 ---@class Opts
----@field api_types? table<string, ApiType>
+---@field api_types? table<string, ApiOpts>
 ---@field models? table<string, ModelOpts>
 ---@field selected_model? string
 ---@field max_tokens? number
@@ -32,25 +36,31 @@ M.main_bufnr = -1
 ---@field system_prompt? string
 ---@field show_diff? boolean
 
+---@alias PromptMode "append" | "replace"
+
 ---@type Opts
 M.opts = {
    api_types = {
       ["anthropic"] = {
          endpoint = "https://api.anthropic.com/v1/messages",
-         get_headers = function(model_opts)
+         get_headers = function(model_opts, api_opts)
+            local api_key = model_opts.api_key or api_opts.api_key or os.getenv("ANTHROPIC_API_KEY") or ""
             return {
-               "Content-Type: application/json",
-               "X-API-Key: " .. (model_opts.api_key or os.getenv("ANTHROPIC_API_KEY") or ""),
-               "anthropic-version: 2023-06-01",
+               ["Content-Type"] = "application/json",
+               ["X-API-Key"] = api_key,
+               ["anthropic-version"] = "2023-06-01",
             }
          end,
-         get_api_payload = function(prompt, system_prompt, model_opts)
+         get_api_payload = function(prompt, model_opts, api_opts)
+            local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
+            local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
+
             return vim.fn.json_encode({
                system = system_prompt,
                messages = { { role = "user", content = prompt } },
                model = model_opts.model,
                stream = false,
-               max_tokens = M.opts.max_tokens,
+               max_tokens = max_tokens,
             })
          end,
          extract_assistant_response = function(response)
@@ -63,13 +73,17 @@ M.opts = {
       },
       ["openai"] = {
          endpoint = "https://api.openai.com/v1/chat/completions",
-         get_headers = function(model_opts)
+         get_headers = function(model_opts, api_opts)
+            local api_key = model_opts.api_key or api_opts.api_key or os.getenv("OPENAI_API_KEY") or ""
             return {
-               "Content-Type: application/json",
-               "Authorization: Bearer " .. (model_opts.api_key or os.getenv("OPENAI_API_KEY") or ""),
+               ["Content-Type"] = "application/json",
+               ["Authorization"] = "Bearer " .. api_key,
             }
          end,
-         get_api_payload = function(prompt, system_prompt, model_opts)
+         get_api_payload = function(prompt, model_opts, api_opts)
+            local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
+            local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
+
             return vim.fn.json_encode({
                messages = {
                   { role = "system", content = system_prompt },
@@ -77,7 +91,7 @@ M.opts = {
                },
                model = model_opts.model,
                stream = false,
-               max_tokens = M.opts.max_tokens,
+               max_tokens = max_tokens,
             })
          end,
          extract_assistant_response = function(response)
@@ -273,68 +287,6 @@ function M.select_model(model_name)
    end)
 end
 
----@param api_type ApiType
----@param model_opts ModelOpts
----@param data string
----@return string | nil
-local function get_curl_command(api_type, model_opts, data)
-   local endpoint = model_opts.endpoint or api_type.endpoint
-   local data_esc = data:gsub('[\\"$]', "\\%0")
-
-   local headers = api_type.get_headers(model_opts)
-   if not headers then
-      return
-   end
-   local header_str = table.concat(
-      vim.tbl_map(function(header)
-         return string.format('--header "%s"', header)
-      end, headers),
-      " "
-   )
-   return string.format('curl -s %s %s --data "%s"', endpoint, header_str, data_esc)
-end
-
----@param prompt string
----@return string[] | nil
-local function call_api(prompt)
-   local model_opts = M.opts.models[M.opts.selected_model] ---@type ModelOpts
-   local api_type = M.opts.api_types[model_opts.api_type] ---@type ApiType
-
-   local system_prompt = model_opts.system_prompt or api_type.system_prompt or M.opts.system_prompt
-   local get_api_payload = model_opts.get_api_payload or api_type.get_api_payload
-   local get_headers = model_opts.get_headers or api_type.get_headers
-   local extract_assistant_response = model_opts.extract_assistant_response or api_type.extract_assistant_response
-
-   if not get_api_payload or not get_headers or not extract_assistant_response then
-      vim.notify("API is not well defined", vim.log.levels.ERROR)
-      return
-   end
-
-   local data = get_api_payload(prompt, system_prompt, model_opts)
-   if not data then
-      return
-   end
-
-   local curl_command = get_curl_command(api_type, model_opts, data)
-   if not curl_command then
-      return
-   end
-
-   local response = vim.fn.system(curl_command)
-   if vim.v.shell_error ~= 0 then
-      vim.notify("Failed to execute cURL.", vim.log.levels.ERROR)
-      return
-   end
-
-   local assistant_response = extract_assistant_response(response, model_opts)
-   if not assistant_response then
-      vim.notify("Unexpected response from the API.", vim.log.levels.ERROR)
-      return
-   end
-
-   return extract_code_lines(assistant_response)
-end
-
 ---@param start_line integer
 ---@param end_line integer
 ---@return string
@@ -370,24 +322,12 @@ function M.close_diff_view()
    util.switch_to_buf_win(M.main_bufnr)
 end
 
----@param show_diff? boolean
-function M.call(show_diff)
-   if show_diff == nil then
-      show_diff = M.opts.show_diff or false
-   end
-
-   local mode = vim.fn.mode()
-   local filetype = vim.bo.filetype
-   M.main_bufnr = vim.fn.bufnr()
-
-   local is_visual_mode = mode == "v" or mode == "V" or mode == " "
-   local start_line, end_line = util.get_sel_range(is_visual_mode)
-   local snippet = get_code_block(start_line, end_line)
-
-   -- TODO: Add the ability to add a textual prompt.
-   -- TODO: Add the ability to specify more context.
-
-   local prompt = "<type>\n"
+---@param is_visual_mode boolean
+---@param filetype string
+---@param snippet string
+---@return string
+local function create_user_prompt(is_visual_mode, filetype, snippet)
+   return "<type>\n"
       .. (is_visual_mode and "replace" or "append")
       .. "\n</type>\n"
       .. "<language>\n"
@@ -395,27 +335,82 @@ function M.call(show_diff)
       .. "\n</language>\n\n<snippet>\n"
       .. snippet
       .. "\n</snippet>"
+end
 
-   local response = call_api(prompt)
-   if not response then
-      vim.notify("Received invalid response from the API.", vim.log.levels.ERROR)
+---@param pre_replace fun()
+---@param post_replace fun()
+local function call_api(pre_replace, post_replace)
+   local mode = vim.fn.mode()
+   local filetype = vim.bo.filetype
+   local is_visual_mode = mode == "v" or mode == "V" or mode == " "
+
+   local start_line, end_line = util.get_sel_range()
+   local snippet = get_code_block(start_line, end_line)
+   local prompt = create_user_prompt(is_visual_mode, filetype, snippet)
+
+   local model_opts = M.opts.models[M.opts.selected_model] ---@type ModelOpts
+   local api_opts = M.opts.api_types[model_opts.api_type] ---@type ApiOpts
+
+   local endpoint = model_opts.endpoint or api_opts.endpoint
+   local get_api_payload = model_opts.get_api_payload or api_opts.get_api_payload
+   local get_headers = model_opts.get_headers or api_opts.get_headers
+   local extract_assistant_response = model_opts.extract_assistant_response or api_opts.extract_assistant_response
+
+   if not get_api_payload or not get_headers or not extract_assistant_response then
+      vim.notify("API is not well defined", vim.log.levels.ERROR)
       return
    end
 
-   if show_diff then
-      M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
-      if not M.dup_bufnr or M.dup_bufnr == -1 then
-         vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
-         return
+   local body = get_api_payload(prompt, model_opts, api_opts, M.opts)
+   local headers = get_headers(model_opts, api_opts, M.opts)
+   if not body or not headers then
+      return
+   end
+
+   curl.post(endpoint, {
+      body = body,
+      headers = headers,
+      callback = function(response_http)
+         vim.schedule(function()
+            local response_str = response_http.body
+            local response = extract_assistant_response(response_str, model_opts, api_opts, M.opts)
+            if not response then
+               vim.notify("No response from the API", vim.log.levels.ERROR)
+               return
+            end
+            local lines = extract_code_lines(response)
+            local repl_start_line = is_visual_mode and start_line or end_line + 1
+
+            pre_replace()
+            vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
+            post_replace()
+         end)
+      end,
+   })
+end
+
+---@param show_diff? boolean
+function M.call(show_diff)
+   if show_diff == nil then
+      show_diff = M.opts.show_diff or false
+   end
+
+   M.main_bufnr = vim.fn.bufnr()
+
+   call_api(function()
+      if show_diff then
+         local filetype = vim.bo.filetype
+         M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
+         if not M.dup_bufnr or M.dup_bufnr == -1 then
+            vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
+            return
+         end
       end
-   end
-
-   local repl_start_line = is_visual_mode and start_line or end_line + 1
-   vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, response)
-
-   if show_diff then
-      open_diff_view()
-   end
+   end, function()
+      if show_diff then
+         open_diff_view()
+      end
+   end)
 end
 
 return M

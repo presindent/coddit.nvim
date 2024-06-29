@@ -1,5 +1,10 @@
 local M = {}
 
+function M.is_visual_mode()
+   local mode = vim.fn.mode()
+   return mode == "v" or mode == "V" or mode == " "
+end
+
 function M.switch_to_buf_win(bufnr)
    for _, win in ipairs(vim.api.nvim_list_wins()) do
       if vim.api.nvim_win_get_buf(win) == bufnr then
@@ -9,8 +14,8 @@ function M.switch_to_buf_win(bufnr)
    end
 end
 
----@param is_visual_mode boolean
-function M.get_sel_range(is_visual_mode)
+function M.get_sel_range()
+   local is_visual_mode = M.is_visual_mode()
    local end_line = vim.fn.getpos(".")[2]
 
    local start_line
