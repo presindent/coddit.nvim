@@ -386,6 +386,8 @@ local function call_api(pre_replace, post_replace)
    local visible_response = ""
    local char_index = 0
 
+   local repl_start_line = is_visual_mode and start_line or end_line + 1
+
    ---@param kn integer
    local function add_char_to_visible_response(kn)
       if kn ~= #full_response then
@@ -411,9 +413,8 @@ local function call_api(pre_replace, post_replace)
          end, delay)
 
          local lines = extract_code_lines(visible_response)
-         local repl_start_line = is_visual_mode and start_line or end_line + 1
          vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
-         end_line = start_line + #lines - 1
+         end_line = repl_start_line + #lines - 1
          char_index = char_index + 1
       end
    end
