@@ -349,9 +349,8 @@ local function create_user_prompt(is_visual_mode, filetype, snippet)
       .. "\n</snippet>"
 end
 
----@param pre_replace fun()
----@param post_replace fun()
-local function call_api(pre_replace, post_replace)
+---@param on_start fun()
+local function call_api(on_start)
    local mode = vim.fn.mode()
    local filetype = vim.bo.filetype
    local is_visual_mode = mode == "v" or mode == "V" or mode == " "
@@ -409,17 +408,23 @@ local function call_api(pre_replace, post_replace)
       end
 
       if char_index <= #full_response then
-         visible_response = visible_response .. full_response:sub(char_index, char_index)
+         if stream then
+            visible_response = visible_response .. full_response:sub(char_index, char_index)
+         else
+            visible_response = full_response
+         end
 
          local total_chars = #full_response - char_index + 1
          local total_duration = 100
          local delay = math.min(total_duration / total_chars, 10)
 
-         vim.defer_fn(function()
-            vim.schedule(function()
-               add_char_to_visible_response(#full_response)
-            end)
-         end, delay)
+         if stream then
+            vim.defer_fn(function()
+               vim.schedule(function()
+                  add_char_to_visible_response(#full_response)
+               end)
+            end, delay)
+         end
 
          local lines = extract_code_lines(visible_response)
          vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
@@ -428,13 +433,13 @@ local function call_api(pre_replace, post_replace)
       end
    end
 
-   pre_replace()
-   post_replace()
+   on_start()
 
+   ---@param response string
    ---@param msg string
    ---@param level integer|nil
-   local function callback(msg, level)
-      add_char_to_visible_response(#full_response)
+   local function callback(response, msg, level)
+      add_char_to_visible_response(#response)
       undojoin()
       vim.cmd("redraw")
       vim.notify(msg, level)
@@ -443,35 +448,48 @@ local function call_api(pre_replace, post_replace)
    curl.post(endpoint, {
       body = body,
       headers = headers,
-      stream = function(_, chunk)
+      stream = stream
+            and function(_, chunk)
+               vim.schedule(function()
+                  if not chunk then
+                     return
+                  end
+
+                  local chunk_body = chunk:match("^data: (.+)$")
+                  if event_type == "content_block_delta" and chunk_body then
+                     local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
+                     if ok and chunk_json and chunk_json.delta and chunk_json.delta.text then
+                        local text = chunk_json.delta.text
+                        full_response = full_response .. text
+                        add_char_to_visible_response(#full_response)
+                     else
+                        vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+                     end
+                  end
+
+                  event_type = chunk:match("^event: (.+)$")
+               end)
+            end
+         or nil,
+      callback = stream and function()
          vim.schedule(function()
-            if not chunk then
+            callback(full_response, "Streaming completed", vim.log.levels.INFO)
+         end)
+      end or function(response_http)
+         vim.schedule(function()
+            local response_str = response_http.body
+            local response = extract_assistant_response(response_str, model_opts, api_opts, M.opts)
+            if not response then
+               vim.notify("No response from the API", vim.log.levels.ERROR)
                return
             end
-
-            local chunk_body = chunk:match("^data: (.+)$")
-            if event_type == "content_block_delta" and chunk_body then
-               local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
-               if ok and chunk_json and chunk_json.delta and chunk_json.delta.text then
-                  local text = chunk_json.delta.text
-                  full_response = full_response .. text
-                  add_char_to_visible_response(#full_response)
-               else
-                  vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
-               end
-            end
-
-            event_type = chunk:match("^event: (.+)$")
-         end)
-      end,
-      callback = function()
-         vim.schedule(function()
-            callback("Streaming completed", vim.log.levels.INFO)
+            full_response = response
+            callback(full_response, "Done", vim.log.levels.INFO)
          end)
       end,
       error_callback = function(err)
          vim.schedule(function()
-            callback("Error during streaming: " .. tostring(err), vim.log.levels.ERROR)
+            callback(full_response, "Error during generation: " .. tostring(err), vim.log.levels.ERROR)
          end)
       end,
    })
@@ -495,7 +513,6 @@ function M.call(show_diff)
          end
          vim.api.nvim_set_current_buf(M.main_bufnr)
       end
-   end, function()
       if show_diff then
          open_diff_view()
       end
