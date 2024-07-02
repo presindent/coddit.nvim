@@ -447,12 +447,12 @@ local function call_api(on_start)
          return
       end
 
-      if #visible_response then
-         undojoin()
-         vim.cmd("redraw")
-      end
-
       if char_index <= #full_response then
+         if #visible_response then
+            undojoin()
+            vim.cmd("redraw")
+         end
+
          if stream then
             visible_response = visible_response .. full_response:sub(char_index, char_index)
          else
