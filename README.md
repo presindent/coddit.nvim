@@ -9,8 +9,8 @@ coddit.nvim is a Neovim plugin to seamlessly harness coding capabilities of LLMs
 <table>
 <tbody>
 <tr>
-<td><video src="https://github.com/presindent/coddit.nvim/assets/115044400/70372a6d-93dd-4db7-8f81-baffcd568701"/></td>
-<td><video src="https://github.com/presindent/coddit.nvim/assets/115044400/521b9569-d632-4e06-9169-0e2a37a33727"/></td>
+<td><video src="https://github.com/presindent/coddit.nvim/assets/115044400/185de060-7fcd-42d2-8ec7-0e59b68d24a6"/></td>
+<td><video src="https://github.com/presindent/coddit.nvim/assets/115044400/e16bfd69-4076-4b1d-8b2f-191f6b9536f5"/></td>
 </tr>
 </tbody>
 </table>
