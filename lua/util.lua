@@ -1,5 +1,10 @@
 local M = {}
 
+function M.is_visual_mode()
+   local mode = vim.fn.mode()
+   return mode == "v" or mode == "V" or mode == " "
+end
+
 function M.switch_to_buf_win(bufnr)
    for _, win in ipairs(vim.api.nvim_list_wins()) do
       if vim.api.nvim_win_get_buf(win) == bufnr then
@@ -9,8 +14,8 @@ function M.switch_to_buf_win(bufnr)
    end
 end
 
----@param is_visual_mode boolean
-function M.get_sel_range(is_visual_mode)
+function M.get_sel_range()
+   local is_visual_mode = M.is_visual_mode()
    local end_line = vim.fn.getpos(".")[2]
 
    local start_line
@@ -53,6 +58,18 @@ function M.duplicate_buffer(bufnr, filetype)
    vim.api.nvim_set_option_value("filetype", filetype, { buf = tmp_bufnr })
 
    return tmp_bufnr
+end
+
+---@param default boolean
+---@param ... boolean
+---@return boolean
+function M.get_first_boolean(default, ...)
+   for _, v in ipairs({ ... }) do
+      if v ~= nil then
+         return v
+      end
+   end
+   return default
 end
 
 return M
