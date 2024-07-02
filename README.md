@@ -21,7 +21,7 @@ The following guide is specific to the [lazy.nvim](https://github.com/folke/lazy
 
 ### Installation
 
-Add the following table to your lazy.nvim configuration for a default setup using GPT-4o on OpenAI's API:
+Add the following table to your lazy.nvim configuration for a default setup using Anthropic's Claude Sonnet 3.5.
 
 ```lua
 {
@@ -55,9 +55,10 @@ For custom model configurations, use an expanded setup such as this:
           api_type = "openai",
         },
       },
-      selected_model = "gpt-4o",  -- set this to "sonnet" to use Claude Sonnet 3.5
+      selected_model = "sonnet",  -- set this to "gpt-4o" to use OpenAI's GPT-4O
       max_tokens = 1024,
       anthropic_version = "2023-06-01",
+      stream = true,  -- set this to false to disable streaming
       show_diff = true,  -- set this to false to skip diffview
     })
   end,
@@ -76,12 +77,16 @@ require("coddit").setup({
       get_headers = function(model_opts)
          return { "Content-Type: application/json" }
       end,
-      get_api_payload = function(prompt, system_prompt, model_opts)
+      get_api_payload = function(prompt, model_opts, api_opts, module_opts)
+         local system_prompt = model_opts.system_prompt or api_opts.system_prompt or module_opts.system_prompt
+         local max_tokens = model_opts.max_tokens or api_opts.max_tokens or module_opts.max_tokens
+         local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, module_opts.stream)
+
          return vim.fn.json_encode({
             model = model_opts.model,
             stream = false,
             options = {
-               num_predict = M.opts.max_tokens,
+               num_predict = max_tokens,
             },
             messages = {
                { role = "system", content = system_prompt },
@@ -122,8 +127,8 @@ coddit.setup({ ... })
 -- If a visual block is selected, the snippet is communicated to the LLM,
 -- else, the part of the buffer above and including the current cursor row
 -- is communicated.
----@param show_diff? boolean Skip the diff if false, not if unspecified
-coddit.call(show_diff)
+---@param toggle_show_diff? boolean Skip the diff if false, not if unspecified
+coddit.call(toggle_show_diff)
 
 -- Select the model to call when `coddit.call` is invoked. It updates the
 -- `coddit.selected_model` attribute, which may also be specified during
@@ -144,13 +149,22 @@ These keymaps provide convenient access to coddit's main functions. Note that th
 
 ```lua
 vim.keymap.set({ "n", "v" }, "<leader>aic", require("coddit").call, { desc = "Invoke coddit" })
+vim.keymap.set({ "n", "v" }, "<leader>aid", require("coddit").close_diff_view, { desc = "Close coddit diffview" })
+
+vim.keymap.set({ "n", "v" }, "<leader>aim", function()
+  require("coddit").select_model()
+  if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "\22" then
+    require("coddit").call()
+  end
+end, { desc = "Select model for coddit and call if in visual mode" })
 
 vim.keymap.set({ "n", "v" }, "<leader>aiC", function()
   require("coddit").call(false)
-end, { desc = "Invoke coddit without diff view" })
+end, { desc = "Invoke coddit with toggled diff view" })
 
-vim.keymap.set({ "n" }, "<leader>aid", require("coddit").close_diff_view, { desc = "Close coddit diffview" })
-vim.keymap.set({ "n" }, "<leader>aim", require("coddit").select_model, { desc = "Select model for coddit" })
+vim.keymap.set("n", "<leader>.", function()
+  require("telescope").extensions.smart_open.smart_open()
+end, { noremap = true, silent = true })
 ```
 
 ### Selecting the Model
@@ -162,7 +176,6 @@ The API and the keymap discussed above facilitate selecting your favourite LLM o
 ## Roadmap
 
 - [ ] Implement actions and CLI interaction.
-- [ ] Implement support for browser-based chatbots like ChatGPT.
 - Tracking other enhancements and fixes as [issues](https://github.com/presindent/coddit.nvim/issues).
 
 ## Similar Plugins
