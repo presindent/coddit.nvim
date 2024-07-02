@@ -59,14 +59,7 @@ M.opts = {
          get_api_payload = function(prompt, model_opts, api_opts)
             local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
             local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
-
-            local stream = model_opts.stream
-            if stream == nil then
-               stream = api_opts.stream
-            end
-            if stream == nil then
-               stream = M.opts.stream
-            end
+            local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, M.opts.stream)
 
             return vim.fn.json_encode({
                system = system_prompt,
@@ -111,8 +104,8 @@ M.opts = {
          end,
          get_api_payload = function(prompt, model_opts, api_opts)
             local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
-            local stream = model_opts.stream or api_opts.stream or M.opts.stream
             local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
+            local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, M.opts.stream)
 
             return vim.fn.json_encode({
                messages = {

@@ -60,4 +60,16 @@ function M.duplicate_buffer(bufnr, filetype)
    return tmp_bufnr
 end
 
+---@param default boolean
+---@param ... boolean
+---@return boolean
+function M.get_first_boolean(default, ...)
+   for _, v in ipairs({ ... }) do
+      if v ~= nil then
+         return v
+      end
+   end
+   return default
+end
+
 return M
