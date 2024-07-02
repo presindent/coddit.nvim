@@ -388,6 +388,15 @@ local function call_api(pre_replace, post_replace)
 
    local repl_start_line = is_visual_mode and start_line or end_line + 1
 
+   local should_undojoin = false
+   local function undojoin()
+      if should_undojoin then
+         pcall(vim.cmd.undojoin)
+      else
+         should_undojoin = true
+      end
+   end
+
    ---@param kn integer
    local function add_char_to_visible_response(kn)
       if kn ~= #full_response then
@@ -395,7 +404,7 @@ local function call_api(pre_replace, post_replace)
       end
 
       if #visible_response then
-         pcall(vim.cmd.undojoin)
+         undojoin()
          vim.cmd("redraw")
       end
 
@@ -426,7 +435,7 @@ local function call_api(pre_replace, post_replace)
    ---@param level integer|nil
    local function callback(msg, level)
       add_char_to_visible_response(#full_response)
-      pcall(vim.cmd.undojoin)
+      undojoin()
       vim.cmd("redraw")
       vim.notify(msg, level)
    end
