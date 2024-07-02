@@ -13,6 +13,7 @@ M.main_bufnr = -1
 ---@field api_key? string
 ---@field system_prompt? string
 ---@field anthropic_version? string
+---@field stream? boolean
 ---@field max_tokens? number
 ---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
 ---@field get_api_payload? fun(prompt: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string
@@ -22,6 +23,7 @@ M.main_bufnr = -1
 ---@field endpoint string
 ---@field api_key? string
 ---@field system_prompt? string
+---@field stream? boolean
 ---@field max_tokens? number
 ---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
 ---@field get_api_payload fun(prompt: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string
@@ -34,6 +36,7 @@ M.main_bufnr = -1
 ---@field max_tokens? number
 ---@field anthropic_version? string
 ---@field system_prompt? string
+---@field stream? boolean
 ---@field show_diff? boolean
 
 ---@alias PromptMode "append" | "replace"
@@ -55,11 +58,19 @@ M.opts = {
             local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
             local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
 
+            local stream = model_opts.stream
+            if stream == nil then
+               stream = api_opts.stream
+            end
+            if stream == nil then
+               stream = M.opts.stream
+            end
+
             return vim.fn.json_encode({
                system = system_prompt,
                messages = { { role = "user", content = prompt } },
                model = model_opts.model,
-               stream = false,
+               stream = stream,
                max_tokens = max_tokens,
             })
          end,
@@ -82,6 +93,7 @@ M.opts = {
          end,
          get_api_payload = function(prompt, model_opts, api_opts)
             local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
+            local stream = model_opts.stream or api_opts.stream or M.opts.stream
             local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
 
             return vim.fn.json_encode({
@@ -90,7 +102,7 @@ M.opts = {
                   { role = "user", content = prompt },
                },
                model = model_opts.model,
-               stream = false,
+               stream = stream,
                max_tokens = max_tokens,
             })
          end,
@@ -352,6 +364,7 @@ local function call_api(pre_replace, post_replace)
    local api_opts = M.opts.api_types[model_opts.api_type] ---@type ApiOpts
 
    local endpoint = model_opts.endpoint or api_opts.endpoint
+   local stream = model_opts.stream or api_opts.stream or M.opts.stream
    local get_api_payload = model_opts.get_api_payload or api_opts.get_api_payload
    local get_headers = model_opts.get_headers or api_opts.get_headers
    local extract_assistant_response = model_opts.extract_assistant_response or api_opts.extract_assistant_response
@@ -367,23 +380,88 @@ local function call_api(pre_replace, post_replace)
       return
    end
 
+   local event_type
+   local full_response = ""
+
+   local visible_response = ""
+   local char_index = 0
+
+   ---@param kn integer
+   local function add_char_to_visible_response(kn)
+      if kn ~= #full_response then
+         return
+      end
+
+      if #visible_response then
+         pcall(vim.cmd.undojoin)
+         vim.cmd("redraw")
+      end
+
+      if char_index <= #full_response then
+         visible_response = visible_response .. full_response:sub(char_index, char_index)
+
+         local total_chars = #full_response - char_index + 1
+         local total_duration = 100
+         local delay = math.min(total_duration / total_chars, 10)
+
+         vim.defer_fn(function()
+            vim.schedule(function()
+               add_char_to_visible_response(#full_response)
+            end)
+         end, delay)
+
+         local lines = extract_code_lines(visible_response)
+         local repl_start_line = is_visual_mode and start_line or end_line + 1
+         vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
+         end_line = start_line + #lines - 1
+         char_index = char_index + 1
+      end
+   end
+
+   pre_replace()
+   post_replace()
+
+   ---@param msg string
+   ---@param level integer|nil
+   local function callback(msg, level)
+      add_char_to_visible_response(#full_response)
+      pcall(vim.cmd.undojoin)
+      vim.cmd("redraw")
+      vim.notify(msg, level)
+   end
+
    curl.post(endpoint, {
       body = body,
       headers = headers,
-      callback = function(response_http)
+      stream = function(_, chunk)
          vim.schedule(function()
-            local response_str = response_http.body
-            local response = extract_assistant_response(response_str, model_opts, api_opts, M.opts)
-            if not response then
-               vim.notify("No response from the API", vim.log.levels.ERROR)
+            if not chunk then
                return
             end
-            local lines = extract_code_lines(response)
-            local repl_start_line = is_visual_mode and start_line or end_line + 1
 
-            pre_replace()
-            vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
-            post_replace()
+            local chunk_body = chunk:match("^data: (.+)$")
+            if event_type == "content_block_delta" and chunk_body then
+               local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
+               if ok and chunk_json and chunk_json.delta and chunk_json.delta.text then
+                  local text = chunk_json.delta.text
+                  full_response = full_response .. text
+                  add_char_to_visible_response(#full_response)
+               else
+                  vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+               end
+            end
+
+            event_type = chunk:match("^event: (.+)$")
+         end)
+      end,
+      callback = function()
+         vim.schedule(function()
+            callback("Streaming completed", vim.log.levels.INFO)
+         end)
+      end,
+      error_callback = function(err)
+         vim.schedule(function()
+            callback("Error during streaming: " .. tostring(err), vim.log.levels.ERROR)
          end)
       end,
    })
@@ -405,6 +483,7 @@ function M.call(show_diff)
             vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
             return
          end
+         vim.api.nvim_set_current_buf(M.main_bufnr)
       end
    end, function()
       if show_diff then
