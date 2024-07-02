@@ -306,11 +306,15 @@ function M.setup(opts)
    end
 end
 
---- @param model_name? string
-function M.select_model(model_name)
+---@param model_name? string
+---@param callback? fun()
+function M.select_model(model_name, callback)
    if model_name then
       if M.opts.models[model_name] then
          M.opts.selected_model = model_name
+         if callback then
+            callback()
+         end
       else
          vim.notify("Invalid model name. Model not changed.", vim.log.levels.ERROR)
       end
@@ -326,6 +330,9 @@ function M.select_model(model_name)
    }, function(choice)
       if choice then
          M.opts.selected_model = choice
+      end
+      if callback then
+         callback()
       end
    end)
 end

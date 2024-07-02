@@ -151,20 +151,20 @@ These keymaps provide convenient access to coddit's main functions. Note that th
 vim.keymap.set({ "n", "v" }, "<leader>aic", require("coddit").call, { desc = "Invoke coddit" })
 vim.keymap.set({ "n", "v" }, "<leader>aid", require("coddit").close_diff_view, { desc = "Close coddit diffview" })
 
-vim.keymap.set({ "n", "v" }, "<leader>aim", function()
+vim.keymap.set("n", "<leader>aim", function()
   require("coddit").select_model()
-  if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "\22" then
+end, { desc = "Select model for coddit" })
+
+vim.keymap.set("v", "<leader>aim", function()
+  require("coddit").select_model(nil, function()
+    vim.cmd("normal! gv")
     require("coddit").call()
-  end
-end, { desc = "Select model for coddit and call if in visual mode" })
+  end)
+end, { desc = "Select model for coddit and call" })
 
 vim.keymap.set({ "n", "v" }, "<leader>aiC", function()
   require("coddit").call(false)
 end, { desc = "Invoke coddit with toggled diff view" })
-
-vim.keymap.set("n", "<leader>.", function()
-  require("telescope").extensions.smart_open.smart_open()
-end, { noremap = true, silent = true })
 ```
 
 ### Selecting the Model
