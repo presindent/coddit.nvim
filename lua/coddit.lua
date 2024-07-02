@@ -18,6 +18,7 @@ M.main_bufnr = -1
 ---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
 ---@field get_api_payload? fun(prompt: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string
 ---@field extract_assistant_response? fun(response: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
+---@field extract_text_delta? fun(response: string, state?: { event: string }, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
 
 ---@class ApiOpts
 ---@field endpoint string
@@ -28,6 +29,7 @@ M.main_bufnr = -1
 ---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
 ---@field get_api_payload fun(prompt: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string
 ---@field extract_assistant_response fun(response: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
+---@field extract_text_delta? fun(response: string, state?: { event: string }, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
 
 ---@class Opts
 ---@field api_types? table<string, ApiOpts>
@@ -81,6 +83,22 @@ M.opts = {
             end
             return nil
          end,
+         extract_text_delta = function(response, state)
+            if not response then
+               return
+            end
+            local chunk_body = response:match("^data: (.+)$")
+            if chunk_body and state.event == "content_block_delta" then
+               local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
+               if ok and chunk_json and chunk_json.delta and chunk_json.delta.text then
+                  return chunk_json.delta.text
+               else
+                  vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+               end
+            else
+               state.event = response:match("^event: (.+)$")
+            end
+         end,
       },
       ["openai"] = {
          endpoint = "https://api.openai.com/v1/chat/completions",
@@ -112,6 +130,26 @@ M.opts = {
                return decoded.choices[1].message.content
             end
             return nil
+         end,
+         extract_text_delta = function(response)
+            if not response then
+               return
+            end
+            local chunk_body = response:match("^data: (.+)$")
+            if chunk_body then
+               if chunk_body == "[DONE]" then
+                  return
+               end
+               local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
+               if ok and chunk_json.choices and chunk_json.choices[1] and chunk_json.choices[1].delta then
+                  local delta = chunk_json.choices[1].delta
+                  if delta.content then
+                     return delta.content
+                  end
+               else
+                  vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+               end
+            end
          end,
       },
    },
@@ -367,8 +405,14 @@ local function call_api(on_start)
    local get_api_payload = model_opts.get_api_payload or api_opts.get_api_payload
    local get_headers = model_opts.get_headers or api_opts.get_headers
    local extract_assistant_response = model_opts.extract_assistant_response or api_opts.extract_assistant_response
+   local extract_text_delta = model_opts.extract_text_delta or api_opts.extract_text_delta
 
-   if not get_api_payload or not get_headers or not extract_assistant_response then
+   if
+      not get_api_payload
+      or not get_headers
+      or (not stream and not extract_assistant_response)
+      or (stream and not extract_text_delta)
+   then
       vim.notify("API is not well defined", vim.log.levels.ERROR)
       return
    end
@@ -379,7 +423,8 @@ local function call_api(on_start)
       return
    end
 
-   local event_type
+   ---@type { event: string }
+   local state = { event = "" }
    local full_response = ""
 
    local visible_response = ""
@@ -451,23 +496,13 @@ local function call_api(on_start)
       stream = stream
             and function(_, chunk)
                vim.schedule(function()
-                  if not chunk then
+                  ---@diagnostic disable-next-line:need-check-nil
+                  local delta = extract_text_delta(chunk, state, model_opts, api_opts, M.opts)
+                  if not delta then
                      return
                   end
-
-                  local chunk_body = chunk:match("^data: (.+)$")
-                  if event_type == "content_block_delta" and chunk_body then
-                     local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
-                     if ok and chunk_json and chunk_json.delta and chunk_json.delta.text then
-                        local text = chunk_json.delta.text
-                        full_response = full_response .. text
-                        add_char_to_visible_response(#full_response)
-                     else
-                        vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
-                     end
-                  end
-
-                  event_type = chunk:match("^event: (.+)$")
+                  full_response = full_response .. delta
+                  add_char_to_visible_response(#full_response)
                end)
             end
          or nil,
