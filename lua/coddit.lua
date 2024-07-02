@@ -523,10 +523,11 @@ local function call_api(on_start)
    })
 end
 
----@param show_diff? boolean
-function M.call(show_diff)
-   if show_diff == nil then
-      show_diff = M.opts.show_diff or false
+---@param toggle_show_diff? boolean
+function M.call(toggle_show_diff)
+   local show_diff = M.opts.show_diff or false
+   if toggle_show_diff then
+      show_diff = not show_diff
    end
 
    M.main_bufnr = vim.fn.bufnr()
