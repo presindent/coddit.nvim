@@ -394,7 +394,7 @@ local function call_api(on_start)
    local api_opts = M.opts.api_types[model_opts.api_type] ---@type ApiOpts
 
    local endpoint = model_opts.endpoint or api_opts.endpoint
-   local stream = model_opts.stream or api_opts.stream or M.opts.stream
+   local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, M.opts.stream)
    local get_api_payload = model_opts.get_api_payload or api_opts.get_api_payload
    local get_headers = model_opts.get_headers or api_opts.get_headers
    local extract_assistant_response = model_opts.extract_assistant_response or api_opts.extract_assistant_response
