@@ -465,9 +465,7 @@ local function call_api(on_start)
 
       if stream then
         vim.defer_fn(function()
-          vim.schedule(function()
-            add_char_to_visible_response(#full_response)
-          end)
+          add_char_to_visible_response(#full_response)
         end, delay)
       end
 
