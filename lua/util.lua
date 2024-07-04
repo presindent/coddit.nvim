@@ -61,15 +61,19 @@ function M.duplicate_buffer(bufnr, filetype)
 end
 
 ---@param default boolean
----@param ... boolean
+---@param arr boolean[]
 ---@return boolean
-function M.get_first_boolean(default, ...)
-  for _, v in ipairs({ ... }) do
-    if v ~= nil then
-      return v
+function M.get_first_boolean(default, arr)
+  for i = 1, #arr do
+    if arr[i] ~= nil then
+      return arr[i]
     end
   end
   return default
+end
+
+function M.temp()
+  vim.notify(tostring(M.get_first_boolean(true, { nil, nil, false })))
 end
 
 return M

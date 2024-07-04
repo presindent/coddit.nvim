@@ -59,7 +59,7 @@ M.opts = {
       get_api_payload = function(prompt, model_opts, api_opts)
         local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
         local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
-        local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, M.opts.stream)
+        local stream = util.get_first_boolean(true, { model_opts.stream, api_opts.stream, M.opts.stream })
 
         return vim.fn.json_encode({
           system = system_prompt,
@@ -105,7 +105,7 @@ M.opts = {
       get_api_payload = function(prompt, model_opts, api_opts)
         local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
         local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
-        local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, M.opts.stream)
+        local stream = util.get_first_boolean(true, { model_opts.stream, api_opts.stream, M.opts.stream })
 
         return vim.fn.json_encode({
           messages = {
@@ -401,7 +401,7 @@ local function call_api(on_start)
   local api_opts = M.opts.api_types[model_opts.api_type] ---@type ApiOpts
 
   local endpoint = model_opts.endpoint or api_opts.endpoint
-  local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, M.opts.stream)
+  local stream = util.get_first_boolean(true, { model_opts.stream, api_opts.stream, M.opts.stream })
   local get_api_payload = model_opts.get_api_payload or api_opts.get_api_payload
   local get_headers = model_opts.get_headers or api_opts.get_headers
   local extract_assistant_response = model_opts.extract_assistant_response or api_opts.extract_assistant_response
@@ -453,26 +453,20 @@ local function call_api(on_start)
         vim.cmd("redraw")
       end
 
-      if stream then
-        visible_response = visible_response .. full_response:sub(char_index, char_index)
-      else
-        visible_response = full_response
-      end
-
-      local total_chars = #full_response - char_index + 1
+      local total_chars = #full_response - char_index
       local total_duration = 100
-      local delay = math.min(total_duration / total_chars, 10)
+      local chars_to_add = math.max(math.ceil(total_chars / total_duration), 1)
 
-      if stream then
-        vim.defer_fn(function()
-          add_char_to_visible_response(#full_response)
-        end, delay)
-      end
+      visible_response = visible_response .. full_response:sub(char_index + 1, char_index + chars_to_add)
 
       local lines = extract_code_lines(visible_response)
       vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
       end_line = repl_start_line + #lines - 1
-      char_index = char_index + 1
+      char_index = char_index + chars_to_add
+
+      vim.defer_fn(function()
+        add_char_to_visible_response(#full_response)
+      end, 1)
     end
   end
 
