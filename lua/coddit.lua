@@ -457,16 +457,12 @@ local function call_api(on_start)
       local total_duration = 100
       local chars_to_add = math.max(math.ceil(total_chars / total_duration), 1)
 
-      visible_response = visible_response .. full_response:sub(char_index + 1, char_index + chars_to_add)
+      visible_response = full_response
 
       local lines = extract_code_lines(visible_response)
       vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
       end_line = repl_start_line + #lines - 1
       char_index = char_index + chars_to_add
-
-      vim.defer_fn(function()
-        add_char_to_visible_response(#full_response)
-      end, 1)
     end
   end
 
