@@ -1,5 +1,5 @@
 local curl = require("plenary.curl")
-local util = require("util")
+local util = require("coddit.util")
 
 local M = {}
 
