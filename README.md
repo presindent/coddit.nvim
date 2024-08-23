@@ -67,48 +67,59 @@ For custom model configurations, use an expanded setup such as this:
 
 **Note:** coddit.nvim uses `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` environment variables by default for API keys. You may custom keys using `api_key` attribute in a model table during the setup.
 
-You can also define custom API types with their own headers and API payloads by defining `get_headers` and `get_api_payload` functions. You will also have to define an `extract_assistant_response` function to extract the assistants response from the API's JSON response. You can also define these functions for individual models. Here's an example defining `ollama` API type and adding `deepseek-coder` to your options.
+You can also define custom API types with their own headers and API payloads by defining `get_headers` and `get_api_payload` functions. You will also have to define an `extract_assistant_response` function to extract the assistants response from the API's JSON response. You can also define these functions for individual models. Here's an example defining `ollama` API type and adding `deepseek-coder:6.7b` to your options.
 
 ```lua
+local util = require("coddit.util")
+
 require("coddit").setup({
   api_types = {
     ["ollama"] = {
       endpoint = "http://localhost:11434/api/chat",
-      get_headers = function(model_opts)
-         return { "Content-Type: application/json" }
+      get_headers = function(_)
+        return { ["Content-Type"] = "application/json" }
       end,
       get_api_payload = function(prompt, model_opts, api_opts, module_opts)
-         local system_prompt = model_opts.system_prompt or api_opts.system_prompt or module_opts.system_prompt
-         local max_tokens = model_opts.max_tokens or api_opts.max_tokens or module_opts.max_tokens
-         local stream = util.get_first_boolean(true, model_opts.stream, api_opts.stream, module_opts.stream)
+        local system_prompt = model_opts.system_prompt or api_opts.system_prompt or module_opts.system_prompt
+        local max_tokens = model_opts.max_tokens or api_opts.max_tokens or module_opts.max_tokens
+        local stream = util.get_first_boolean(true, { model_opts.stream, api_opts.stream, module_opts.stream })
 
-         return vim.fn.json_encode({
-            model = model_opts.model,
-            stream = false,
-            options = {
-               num_predict = max_tokens,
-            },
-            messages = {
-               { role = "system", content = system_prompt },
-               { role = "user", content = prompt },
-            },
-         })
+        return vim.fn.json_encode({
+          model = model_opts.model,
+          stream = stream,
+          options = {
+            num_predict = max_tokens,
+          },
+          messages = {
+            { role = "system", content = system_prompt },
+            { role = "user", content = prompt },
+          },
+        })
       end,
       extract_assistant_response = function(response)
-         local decoded = vim.fn.json_decode(response)
-         if decoded and decoded.message then
-            return decoded.message
-         end
-         return nil
+        local decoded = vim.fn.json_decode(response)
+        if decoded and decoded.message and decoded.message.content then
+          return decoded.message.content
+        end
+        return nil
       end,
-    }
+      extract_text_delta = function(response)
+        local decoded = vim.fn.json_decode(response)
+        if decoded and decoded.message and decoded.message.content then
+          return decoded.message.content
+        end
+        return nil
+      end,
+      stream = true,
+    },
   },
   models = {
     ["deepseek-coder"] = {
-      model = "deepseek-coder",
+      model = "deepseek-coder:6.7b",
       api_type = "ollama",
-    }
-  }
+    },
+  },
+  selected_model = "sonnet",
 })
 ```
 
