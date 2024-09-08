@@ -41,7 +41,7 @@ M.main_bufnr = -1
 ---@field stream? boolean
 ---@field show_diff? boolean
 
----@alias PromptMode "append" | "replace"
+---@alias PromptMode "append" | "edit"
 
 ---@type Opts
 M.opts = {
@@ -164,120 +164,43 @@ M.opts = {
   max_tokens = 1024,
   anthropic_version = "2023-06-01",
   system_prompt = [[
-You are an AI coding assistant integrated into a Neovim editor instance. Your primary role is to assist users with various programming tasks by modifying existing code snippets or generating new code based on given prompts.
+You are an AI coding assistant that updates code directly in the editor. Your task is to modify or append code based on the given instructions. You will receive input in the following format:
 
-First, identify whether you will be replacing the provided snippet or appending to it. The type may be "append" or "replace".
-<type>
-{{TYPE}}
-</type>
+<ct_language>[programming language]</ct_language>
+<ct_snippet>[code snippet]</ct_snippet>
+<ct_task>[append or edit]</ct_task>
 
-Next, identify the programming language you'll be working with:
-<language>
-{{LANGUAGE}}
-</language>
+For 'edit' tasks:
+1. The snippet will include line numbers.
+2. Provide your changes using the following format, with XML tags on separate lines:
+   <ct_lines_to_update>
+   [line range to edit, e.g., 45-46]
+   </ct_lines_to_update>
+   <ct_updated_code>
+   [replacement code without line numbers]
+   </ct_updated_code>
+3. You may provide multiple updates if necessary.
+4. Maintain the original indentation unless the context changes.
+5. Even for single-line edits, specify both start and end lines (e.g., 45-45).
 
-If no language is specified above, you should auto-detect the language based on the provided code snippet or context. If the language is not discernible, ask the user for clarification.
+For 'append' tasks:
+1. The snippet will not include line numbers.
+2. Provide the code to be appended using:
+   <ct_updated_code>
+   [code to append]
+   </ct_updated_code>
 
-Now, examine the code snippet you'll be working with:
-<snippet>
-{{SNIPPET}}
-</snippet>
+Guidelines:
+- Make only the changes requested by the user, which will be specified in comments within the code.
+- If you have additional suggestions or remarks, include them as short comments in your response snippet.
+- Do not write anything outside of the specified XML tags.
+- Ensure your response contains only the required XML components.
+- Always place XML tags on separate lines from their content.
 
-If no snippet is provided, you'll be generating new code based on the prompt.
-
-Additional context for the task:
-<context>
-{{CONTEXT}}
-</context>
-
-Your task is defined by the following prompt:
-<prompt>
-{{PROMPT}}
-</prompt>
-
-Follow these instructions to complete the task:
-
-1. Analyze the inputs:
-   - If both a code snippet and a prompt are provided, focus on modifying the existing code or adding to it according to the prompt's instructions and the type of the prompt.
-   - If only a code snippet is provided, analyze the comments and annotations to determine the objective. If the objective is unclear, respond with a comment seeking clarification.
-   - If only a prompt is provided, generate new code based on the prompt's requirements.
-   - If neither a code snippet nor a prompt is provided, respond with a comment asking for more information.
-
-2. Perform the required task:
-   - For code modifications, carefully edit the existing code to meet the prompt's requirements while maintaining the original structure and style where possible.
-   - Existing code may be used for examples or context. Refrain from replacing such code unless specifically asked to.
-   - For new code generation, create clean, efficient, and well-commented code that fulfills the prompt's specifications.
-   - Ensure that your code follows best practices and conventions for the programming language in use.
-   - Delete the comments you deem unnecessary, including the imperative ones directing you to write code.
-
-3. Provide explanations:
-   - If you've made significant changes or additions to the code, include brief comments explaining your modifications.
-   - For newly generated code, add comments to explain complex logic or important design decisions.
-
-4. Output format:
-   - Present your final code inside <code> tags. DO NOT use markdown code blocks for the code.
-    - If the type of the prompt is "append", just provide the code that needs to be appended.
-    - If the type is "replace" instead, furnish the entire modified code.
-    - Unless asked to, do not write placeholders for the dependencies such as functions not included in the provided context. Simply assume that such functions/symbols exist, unless told otherwise.
-   - If you need to provide additional explanations or ask for clarifications, use comments within the code.
-   - Use a minimal number of comments, and avoid explaining the obvious parts.
-
-5. Error handling and edge cases:
-   - If you encounter any potential issues or edge cases in the task, address them in your code and explain your approach in comments.
-   - If the task seems impossible or contradictory, explain the issue inside <error> tags and suggest possible solutions or ask for clarification.
-
-6. Seeking clarification:
-   - If any part of the task is unclear or you need more information, respond with a comment (starting with `//`) asking for the specific details you need.
-   - Only proceed with code generation when you have a perfectly discernible objective.
-
-Here's an example of how your response might be structured:
-
-<code>
-// Modified/Generated code here
-function exampleFunction() {
-  // Your code implementation
-  // With explanatory comments as needed
-}
-</code>
-
-DO NOT write anything, including courtesies and language artefacts, outside the XML tags.
-
-Remember, your goal is to provide helpful, accurate, and efficient coding assistance. Always prioritize code quality, readability, and adherence to the user's requirements.
+Analyze the given code, make the requested changes, and provide your response in the specified format.
 ]],
   show_diff = true,
 }
-
----@param response string
----@return string[]
-local function extract_code_lines(response)
-  local lines = {}
-  local in_code_block = false
-  local all_lines = {}
-
-  for line in response:gmatch("([^\r\n]*)[\r\n]?") do
-    table.insert(all_lines, line)
-  end
-
-  -- Find the last </code> tag
-  local last_code_end = #all_lines
-  for i = #all_lines, 1, -1 do
-    if all_lines[i]:match("^</code>$") then
-      last_code_end = i
-      break
-    end
-  end
-
-  for i = 1, last_code_end - 1 do
-    local line = all_lines[i]
-    if line:match("^<code>$") then
-      in_code_block = true
-    elseif in_code_block then
-      table.insert(lines, line)
-    end
-  end
-
-  return lines
-end
 
 ---@param opts Opts
 function M.setup(opts)
@@ -375,16 +298,17 @@ end
 ---@param is_visual_mode boolean
 ---@param filetype string
 ---@param snippet string
+---@param start_line? integer
 ---@return string
-local function create_user_prompt(is_visual_mode, filetype, snippet)
-  return "<type>\n"
-    .. (is_visual_mode and "replace" or "append")
-    .. "\n</type>\n"
-    .. "<language>\n"
+local function create_user_prompt(is_visual_mode, filetype, snippet, start_line)
+  return "<ct_task>\n"
+    .. (is_visual_mode and "edit" or "append")
+    .. "\n</ct_task>\n"
+    .. "<ct_language>\n"
     .. filetype
-    .. "\n</language>\n\n<snippet>\n"
-    .. snippet
-    .. "\n</snippet>"
+    .. "\n</ct_language>\n\n<ct_snippet>\n"
+    .. (is_visual_mode and util.add_line_numbers(snippet, start_line) or snippet)
+    .. "\n</ct_snippet>"
 end
 
 ---@param on_start fun()
@@ -395,7 +319,7 @@ local function call_api(on_start)
 
   local start_line, end_line = util.get_sel_range()
   local snippet = get_code_block(start_line, end_line)
-  local prompt = create_user_prompt(is_visual_mode, filetype, snippet)
+  local prompt = create_user_prompt(is_visual_mode, filetype, snippet, start_line)
 
   local model_opts = M.opts.models[M.opts.selected_model] ---@type ModelOpts
   local api_opts = M.opts.api_types[model_opts.api_type] ---@type ApiOpts
@@ -427,11 +351,6 @@ local function call_api(on_start)
   local state = { event = "" }
   local full_response = ""
 
-  local visible_response = ""
-  local char_index = 0
-
-  local repl_start_line = is_visual_mode and start_line or end_line + 1
-
   local should_undojoin = false
   local function undojoin()
     if should_undojoin then
@@ -441,42 +360,18 @@ local function call_api(on_start)
     end
   end
 
-  ---@param kn integer
-  local function add_char_to_visible_response(kn)
-    if kn ~= #full_response then
-      return
+  local function redraw()
+    undojoin()
+    if is_visual_mode then
+      util.process_and_apply_patch(full_response, M.dup_bufnr, M.main_bufnr)
+    else
+      local buf_lines = vim.api.nvim_buf_line_count(M.main_bufnr)
+      vim.api.nvim_buf_set_lines(M.main_bufnr, end_line, buf_lines, false, util.get_lines_to_append(full_response))
     end
-
-    if char_index <= #full_response then
-      if #visible_response then
-        undojoin()
-        vim.cmd("redraw")
-      end
-
-      local total_chars = #full_response - char_index
-      local total_duration = 100
-      local chars_to_add = math.max(math.ceil(total_chars / total_duration), 1)
-
-      visible_response = full_response
-
-      local lines = extract_code_lines(visible_response)
-      vim.api.nvim_buf_set_lines(M.main_bufnr, repl_start_line - 1, end_line, false, lines)
-      end_line = repl_start_line + #lines - 1
-      char_index = char_index + chars_to_add
-    end
+    vim.cmd("redraw")
   end
 
   on_start()
-
-  ---@param response string
-  ---@param msg string
-  ---@param level integer|nil
-  local function callback(response, msg, level)
-    add_char_to_visible_response(#response)
-    undojoin()
-    vim.cmd("redraw")
-    vim.notify(msg, level)
-  end
 
   curl.post(endpoint, {
     body = body,
@@ -490,14 +385,12 @@ local function call_api(on_start)
               return
             end
             full_response = full_response .. delta
-            add_char_to_visible_response(#full_response)
+            redraw()
           end)
         end
       or nil,
     callback = stream and function()
-      vim.schedule(function()
-        callback(full_response, "Streaming completed", vim.log.levels.INFO)
-      end)
+      vim.notify("Task completed", vim.log.levels.INFO)
     end or function(response_http)
       vim.schedule(function()
         local response_str = response_http.body
@@ -507,13 +400,11 @@ local function call_api(on_start)
           return
         end
         full_response = response
-        callback(full_response, "Done", vim.log.levels.INFO)
+        redraw()
       end)
     end,
     error_callback = function(err)
-      vim.schedule(function()
-        callback(full_response, "Error during generation: " .. tostring(err), vim.log.levels.ERROR)
-      end)
+      vim.notify("Error during generation: " .. tostring(err), vim.log.levels.ERROR)
     end,
   })
 end
