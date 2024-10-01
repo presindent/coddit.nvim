@@ -390,7 +390,9 @@ local function call_api(on_start)
         end
       or nil,
     callback = stream and function()
-      vim.notify("Task completed", vim.log.levels.INFO)
+      vim.schedule(function()
+        vim.notify("Task completed", vim.log.levels.INFO)
+      end)
     end or function(response_http)
       vim.schedule(function()
         local response_str = response_http.body
