@@ -174,7 +174,7 @@ vim.keymap.set("v", "<leader>aim", function()
 end, { desc = "Select model for coddit and call" })
 
 vim.keymap.set({ "n", "v" }, "<leader>aiC", function()
-  require("coddit").call(false)
+  require("coddit").call(true)
 end, { desc = "Invoke coddit with toggled diff view" })
 ```
 
