@@ -47,7 +47,7 @@ For custom model configurations, use an expanded setup such as this:
           api_type = "anthropic",
         },
         ["sonnet"] = {
-          model = "claude-3-5-sonnet-20240620",
+          model = "claude-3-5-sonnet-latest",
           api_type = "anthropic",
         },
         ["gpt-4o"] = {
