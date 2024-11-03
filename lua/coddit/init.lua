@@ -244,7 +244,6 @@ function M.select_model(model_name, callback)
     return
   end
   local model_names = vim.tbl_keys(M.opts.models)
-  table.sort(model_names)
   vim.ui.select(model_names, {
     prompt = "Choose a model:",
     format_item = function(item)
