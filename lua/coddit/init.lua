@@ -145,6 +145,57 @@ M.opts = {
         end
       end,
     },
+    ["openai-o1"] = {
+      endpoint = "https://api.openai.com/v1/chat/completions",
+      get_headers = function(model_opts, api_opts)
+        local api_key = model_opts.api_key or api_opts.api_key or os.getenv("OPENAI_API_KEY") or ""
+        return {
+          ["Content-Type"] = "application/json",
+          ["Authorization"] = "Bearer " .. api_key,
+        }
+      end,
+      get_api_payload = function(prompt, model_opts, api_opts)
+        local system_prompt = model_opts.system_prompt or api_opts.system_prompt or M.opts.system_prompt
+        local max_tokens = model_opts.max_tokens or api_opts.max_tokens or M.opts.max_tokens
+        local stream = util.get_first_boolean(true, { model_opts.stream, api_opts.stream, M.opts.stream })
+
+        return vim.fn.json_encode({
+          messages = {
+            { role = "user", content = system_prompt .. "\n\n" .. prompt }, -- O1 models don't support system prompts
+          },
+          model = model_opts.model,
+          stream = stream,
+          max_completion_tokens = max_tokens, -- O1 models take max_completion_tokens instead of max_tokens
+        })
+      end,
+      extract_assistant_response = function(response)
+        local decoded = vim.fn.json_decode(response)
+        if decoded and decoded.choices and #decoded.choices > 0 then
+          return decoded.choices[1].message.content
+        end
+        return nil
+      end,
+      extract_text_delta = function(response)
+        if not response then
+          return
+        end
+        local chunk_body = response:match("^data: (.+)$")
+        if chunk_body then
+          if chunk_body == "[DONE]" then
+            return
+          end
+          local ok, chunk_json = pcall(vim.fn.json_decode, chunk_body)
+          if ok and chunk_json.choices and chunk_json.choices[1] and chunk_json.choices[1].delta then
+            local delta = chunk_json.choices[1].delta
+            if delta.content then
+              return delta.content
+            end
+          else
+            vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+          end
+        end
+      end,
+    },
   },
   models = {
     ["haiku"] = {
@@ -158,6 +209,16 @@ M.opts = {
     ["gpt-4o"] = {
       model = "gpt-4o",
       api_type = "openai",
+    },
+    ["o1-mini"] = {
+      model = "o1-mini",
+      api_type = "openai-o1",
+      max_tokens = 10000,
+    },
+    ["o1-preview"] = {
+      model = "o1-preview",
+      api_type = "openai-o1",
+      max_tokens = 10000,
     },
   },
   selected_model = "sonnet",
