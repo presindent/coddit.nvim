@@ -1,5 +1,7 @@
 local M = {}
 
+local notif_id = nil
+
 function M.is_visual_mode()
   local mode = vim.fn.mode()
   return mode == "v" or mode == "V" or mode == " "
@@ -181,6 +183,29 @@ function M.get_lines_to_append(response)
     return vim.list_slice(lines, 2, #lines)
   else
     return vim.list_slice(lines, 2, #lines - 1)
+  end
+end
+
+---@param msg string
+---@param level? integer
+---@param opts? table
+function M.notify(msg, level, opts)
+  if not level then
+    level = vim.log.levels.INFO
+  end
+  if not opts then
+    opts = {}
+  end
+
+  opts.title = "Coddit"
+  if (opts.timeout == nil or opts.timeout) and notif_id then
+    opts.replace = notif_id
+    opts.id = notif_id.id ---@diagnostic disable-line:undefined-field
+  end
+
+  local new_notif_id = vim.notify(msg, level, opts)
+  if opts.timeout == false then
+    notif_id = new_notif_id
   end
 end
 

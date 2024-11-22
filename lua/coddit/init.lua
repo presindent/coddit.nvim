@@ -86,7 +86,7 @@ M.opts = {
           if ok and chunk_json and chunk_json.delta and chunk_json.delta.text then
             return chunk_json.delta.text
           else
-            vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+            util.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
           end
         else
           state.event = response:match("^event: (.+)$")
@@ -140,7 +140,7 @@ M.opts = {
               return delta.content
             end
           else
-            vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+            util.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
           end
         end
       end,
@@ -191,7 +191,7 @@ M.opts = {
               return delta.content
             end
           else
-            vim.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
+            util.notify("Error decoding chunk JSON", vim.log.levels.ERROR)
           end
         end
       end,
@@ -300,7 +300,7 @@ function M.select_model(model_name, callback)
         callback()
       end
     else
-      vim.notify("Invalid model name. Model not changed.", vim.log.levels.ERROR)
+      util.notify("Invalid model name. Model not changed.", vim.log.levels.ERROR)
     end
     return
   end
@@ -339,7 +339,7 @@ end
 
 function M.close_diff_view()
   if M.dup_bufnr == -1 then
-    vim.notify("No diff buffer found open.")
+    util.notify("No diff buffer found open.")
     return
   end
   vim.api.nvim_get_current_win()
@@ -391,13 +391,16 @@ local function call_api(on_start)
   local extract_assistant_response = model_opts.extract_assistant_response or api_opts.extract_assistant_response
   local extract_text_delta = model_opts.extract_text_delta or api_opts.extract_text_delta
 
+  -- Show loader notification
+  util.notify("Thinking...", vim.log.levels.INFO, { timeout = false })
+
   if
     not get_api_payload
     or not get_headers
     or (not stream and not extract_assistant_response)
     or (stream and not extract_text_delta)
   then
-    vim.notify("API is not well defined", vim.log.levels.ERROR)
+    util.notify("API is not well defined", vim.log.levels.ERROR)
     return
   end
 
@@ -451,22 +454,23 @@ local function call_api(on_start)
       or nil,
     callback = stream and function()
       vim.schedule(function()
-        vim.notify("Task completed", vim.log.levels.INFO)
+        util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
       end)
     end or function(response_http)
       vim.schedule(function()
         local response_str = response_http.body
         local response = extract_assistant_response(response_str, model_opts, api_opts, M.opts)
         if not response then
-          vim.notify("No response from the API", vim.log.levels.ERROR)
+          util.notify("No response from the API", vim.log.levels.ERROR)
           return
         end
         full_response = response
         redraw()
+        util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
       end)
     end,
     error_callback = function(err)
-      vim.notify("Error during generation: " .. tostring(err), vim.log.levels.ERROR)
+      util.notify("Error during generation: " .. tostring(err), vim.log.levels.ERROR)
     end,
   })
 end
@@ -485,7 +489,7 @@ function M.call(toggle_show_diff)
       local filetype = vim.bo.filetype
       M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
       if not M.dup_bufnr or M.dup_bufnr == -1 then
-        vim.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
+        util.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
         return
       end
       vim.api.nvim_set_current_buf(M.main_bufnr)
