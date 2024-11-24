@@ -198,7 +198,7 @@ function M.notify(msg, level, opts)
   end
 
   opts.title = "Coddit"
-  if (opts.timeout == nil or opts.timeout) and notif_id then
+  if (opts.timeout == nil or opts.timeout or opts._replace) and notif_id then
     opts.replace = notif_id
     opts.id = notif_id.id ---@diagnostic disable-line:undefined-field
   end

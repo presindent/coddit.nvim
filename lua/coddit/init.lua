@@ -447,14 +447,23 @@ local function call_api(on_start)
             if not delta then
               return
             end
+            util.notify("Modifying the code...", vim.log.levels.INFO, { timeout = false, _replace = true })
             full_response = full_response .. delta
             redraw()
           end)
         end
       or nil,
-    callback = stream and function()
+    callback = stream and function(response_http)
       vim.schedule(function()
-        util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
+        if response_http.status == 200 then
+          util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
+        else
+          util.notify(
+            "API responded with an error:\n\n" .. vim.inspect(response_http),
+            vim.log.levels.ERROR,
+            { timeout = 3000 }
+          )
+        end
       end)
     end or function(response_http)
       vim.schedule(function()
