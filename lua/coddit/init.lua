@@ -220,6 +220,12 @@ M.opts = {
       api_type = "openai-o1",
       max_tokens = 10000,
     },
+    ["deepseek-v3"] = {
+      model = "deepseek-chat",
+      api_type = "openai",
+      api_key = os.getenv("DEEPSEEK_API_KEY"),
+      endpoint = "https://api.deepseek.com/chat/completions",
+    },
   },
   selected_model = "sonnet",
   max_tokens = 1024,
