@@ -199,15 +199,19 @@ M.opts = {
   },
   models = {
     ["haiku"] = {
-      model = "claude-3-haiku-20240307",
+      model = "claude-3-5-haiku-latest",
       api_type = "anthropic",
     },
     ["sonnet"] = {
-      model = "claude-3-5-sonnet-latest",
+      model = "claude-3-7-sonnet-latest",
       api_type = "anthropic",
     },
     ["gpt-4o"] = {
       model = "gpt-4o",
+      api_type = "openai",
+    },
+    ["gpt-4.5-preview"] = {
+      model = "gpt-4.5-preview",
       api_type = "openai",
     },
     ["o1-mini"] = {
