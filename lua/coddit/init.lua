@@ -12,7 +12,6 @@ M.main_bufnr = -1
 ---@field api_type? string
 ---@field api_key? string
 ---@field system_prompt? string
----@field anthropic_version? string
 ---@field stream? boolean
 ---@field max_tokens? number
 ---@field get_headers? fun(model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): table<string, string>
@@ -36,7 +35,6 @@ M.main_bufnr = -1
 ---@field models? table<string, ModelOpts>
 ---@field selected_model? string
 ---@field max_tokens? number
----@field anthropic_version? string
 ---@field system_prompt? string
 ---@field stream? boolean
 ---@field show_diff? boolean
@@ -233,7 +231,6 @@ M.opts = {
   },
   selected_model = "sonnet",
   max_tokens = 1024,
-  anthropic_version = "2023-06-01",
   system_prompt = [[
 You are an AI coding assistant that updates code directly in the editor. Your task is to modify or append code based on the given instructions. You will receive input in the following format:
 
