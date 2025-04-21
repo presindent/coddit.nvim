@@ -208,19 +208,9 @@ M.opts = {
       model = "gpt-4o",
       api_type = "openai",
     },
-    ["gpt-4.5-preview"] = {
-      model = "gpt-4.5-preview",
+    ["gpt-4.1"] = {
+      model = "gpt-4.1-2025-04-14",
       api_type = "openai",
-    },
-    ["o1-mini"] = {
-      model = "o1-mini",
-      api_type = "openai-o1",
-      max_tokens = 10000,
-    },
-    ["o1-preview"] = {
-      model = "o1-preview",
-      api_type = "openai-o1",
-      max_tokens = 10000,
     },
     ["deepseek-v3"] = {
       model = "deepseek-chat",
