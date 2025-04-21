@@ -433,13 +433,22 @@ local function call_api(on_start)
     end
   end
 
+  local max_num_lines_while_appending = 0
+
   local function redraw()
     undojoin()
     if is_visual_mode then
       util.process_and_apply_patch(full_response, M.dup_bufnr, M.main_bufnr)
     else
-      local buf_lines = vim.api.nvim_buf_line_count(M.main_bufnr)
-      vim.api.nvim_buf_set_lines(M.main_bufnr, end_line, buf_lines, false, util.get_lines_to_append(full_response))
+      local lines_to_append = util.get_lines_to_append(full_response)
+      vim.api.nvim_buf_set_lines(
+        M.main_bufnr,
+        end_line,
+        end_line + max_num_lines_while_appending,
+        false,
+        lines_to_append
+      )
+      max_num_lines_while_appending = math.max(max_num_lines_while_appending, #lines_to_append)
     end
     vim.cmd("redraw")
   end

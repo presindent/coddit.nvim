@@ -76,6 +76,9 @@ end
 
 ---@param s string
 function M.trim(s)
+  if not s then
+    return ""
+  end
   return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
@@ -176,6 +179,12 @@ end
 ---@return string[]
 function M.get_lines_to_append(response)
   local lines = vim.split(response, "\n")
+  while #lines > 0 and M.trim(lines[1]) == "" do
+    table.remove(lines, 1)
+  end
+  while #lines > 0 and M.trim(lines[#lines]) == "" do
+    table.remove(lines, #lines)
+  end
   if M.trim(lines[1]) ~= "<ct_updated_code>" then
     return {}
   end
