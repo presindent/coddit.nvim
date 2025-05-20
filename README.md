@@ -189,6 +189,33 @@ The API and the keymap discussed above facilitate selecting your favourite LLM o
 - [ ] Implement actions and CLI interaction.
 - Tracking other enhancements and fixes as [issues](https://github.com/presindent/coddit.nvim/issues).
 
+## Testing
+
+Ensuring the reliability and stability of coddit.nvim is important. We encourage contributions in the form of tests.
+
+### Recommended Framework
+
+We recommend using the `plenary.test` framework, which is part of the [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) library (already a dependency of this plugin). This framework allows for writing unit and integration tests in Lua.
+
+### Areas for Testing
+
+Key areas that would benefit from comprehensive testing include:
+
+*   **Utility Functions (`lua/coddit/util.lua`):**
+    *   Functions like `trim`, `add_line_numbers`, `decode_response`, `get_lines_to_append`, `get_sel_range`, and `is_visual_mode`.
+*   **API Configuration (`lua/coddit/init.lua`):**
+    *   Logic for preparing API requests (e.g., in `_prepare_api_config`), ensuring correct endpoints, headers, and payloads are generated based on plugin settings.
+*   **API Response Handling (`lua/coddit/init.lua`):**
+    *   Functions responsible for parsing API responses, such as `extract_assistant_response` and `extract_text_delta` for various API types. This includes testing with both valid and malformed/error responses.
+*   **Prompt Generation (`lua/coddit/init.lua`):**
+    *   Ensuring that user prompts sent to the LLMs are correctly formatted.
+
+### Mocking
+
+For tests involving API interactions, consider using techniques to mock HTTP requests to avoid making real calls to LLM services. This can involve using local mock servers or patching HTTP functions during tests.
+
+We welcome pull requests that add or improve test coverage!
+
 ## Similar Plugins
 
 This plugin is inspired by [llm.nvim](https://github.com/melbaldove/llm.nvim) by [melbaldove](https://github.com/melbaldove).

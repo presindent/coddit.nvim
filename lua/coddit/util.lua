@@ -1,5 +1,11 @@
 local M = {}
 
+-- XML-like tags constants
+local TAG_LINES_TO_UPDATE_OPEN = "<ct_lines_to_update>"
+local TAG_LINES_TO_UPDATE_CLOSE = "</ct_lines_to_update>"
+local TAG_UPDATED_CODE_OPEN = "<ct_updated_code>"
+local TAG_UPDATED_CODE_CLOSE = "</ct_updated_code>"
+
 local notif_id = nil
 
 function M.is_visual_mode()
@@ -41,8 +47,7 @@ function M.duplicate_buffer(bufnr, filetype)
     return nil
   end
 
-  local timestamp = os.time()
-  local tmp_filepath = string.format("/tmp/nvim_temp_%d", timestamp)
+  local tmp_filepath = vim.fn.tempname()
 
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
@@ -117,18 +122,18 @@ function M.decode_response(response)
   local in_code_block = false
 
   for _, line in ipairs(lines) do
-    if line:match("^<ct_lines_to_update>$") then
+    if line:match("^" .. TAG_LINES_TO_UPDATE_OPEN .. "$") then
       current_update = {}
-    elseif line:match("^</ct_lines_to_update>$") then
+    elseif line:match("^" .. TAG_LINES_TO_UPDATE_CLOSE .. "$") then
       -- Do nothing, just skip this line
     elseif line:match("^(%d+)-(%d+)$") then
       local start_line, end_line = line:match("^(%d+)-(%d+)$")
       current_update.start_line = tonumber(start_line)
       current_update.end_line = tonumber(end_line)
-    elseif line:match("^<ct_updated_code>$") then
+    elseif line:match("^" .. TAG_UPDATED_CODE_OPEN .. "$") then
       current_update.code = ""
       in_code_block = true
-    elseif line:match("^</ct_updated_code>$") then
+    elseif line:match("^" .. TAG_UPDATED_CODE_CLOSE .. "$") then
       in_code_block = false
       table.insert(result, current_update)
     else
@@ -185,13 +190,28 @@ function M.get_lines_to_append(response)
   while #lines > 0 and M.trim(lines[#lines]) == "" do
     table.remove(lines, #lines)
   end
-  if M.trim(lines[1]) ~= "<ct_updated_code>" then
+  if #lines == 0 or M.trim(lines[1]) ~= TAG_UPDATED_CODE_OPEN then
     return {}
   end
-  if M.trim(lines[#lines]) ~= "</ct_updated_code>" then
-    return vim.list_slice(lines, 2, #lines)
+  -- Check if the last non-empty line is the closing tag
+  local last_content_line_index = #lines
+  while last_content_line_index > 0 and M.trim(lines[last_content_line_index]) == "" do
+    last_content_line_index = last_content_line_index - 1
+  end
+
+  if last_content_line_index == 0 then -- Should not happen if TAG_UPDATED_CODE_OPEN was found
+    return {}
+  end
+
+  if M.trim(lines[last_content_line_index]) == TAG_UPDATED_CODE_CLOSE then
+    -- Ensure we don't go out of bounds if only open and close tags exist with empty lines between
+    if last_content_line_index -1 < 2 then
+        return {}
+    end
+    return vim.list_slice(lines, 2, last_content_line_index - 1)
   else
-    return vim.list_slice(lines, 2, #lines - 1)
+    -- If no closing tag, assume all lines after open tag are content (as per original logic)
+    return vim.list_slice(lines, 2, #lines)
   end
 end
 
