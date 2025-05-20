@@ -87,7 +87,7 @@ M.opts = {
         return nil
       end,
       -- model_opts, api_opts, global_opts are available from _handle_stream_chunk if needed in future.
-      extract_text_delta = function(response, state, _model_opts, _api_opts, _global_opts)
+      extract_text_delta = function(response, state)
         if not response then
           return nil
         end
@@ -116,8 +116,6 @@ M.opts = {
           -- or if chunk_body is nil, we should return nil as no text delta was extracted.
           return nil
         end
-        -- Fallback for any other case, e.g. if chunk_body was nil.
-        return nil
       end,
     },
     ["openai"] = {
@@ -153,12 +151,7 @@ M.opts = {
       end,
       -- model_opts, api_opts, global_opts are available from _handle_stream_chunk if needed in future.
       -- state is not used by OpenAI spec for delta, but kept for signature consistency.
-      extract_text_delta = function(response, _state, _model_opts, _api_opts, _global_opts)
-        if not response then
-          return nil
-      -- model_opts, api_opts, global_opts are available from _handle_stream_chunk if needed in future.
-      -- state is not used by OpenAI spec for delta, but kept for signature consistency.
-      extract_text_delta = function(response, _state, _model_opts, _api_opts, _global_opts)
+      extract_text_delta = function(response)
         if not response then
           return nil
         end
@@ -181,11 +174,17 @@ M.opts = {
               -- This can happen if the delta is just a role update or finish_reason, which is fine.
               return "" -- Return empty string to signify no text delta, but not an error.
             else
-              util.notify("Unexpected JSON structure in OpenAI stream chunk (delta.content missing or not string): " .. chunk_body, vim.log.levels.WARN)
+              util.notify(
+                "Unexpected JSON structure in OpenAI stream chunk (delta.content missing or not string): " .. chunk_body,
+                vim.log.levels.WARN
+              )
               return nil
             end
           else
-            util.notify("Unexpected JSON structure in OpenAI stream chunk (choices missing or empty): " .. chunk_body, vim.log.levels.WARN)
+            util.notify(
+              "Unexpected JSON structure in OpenAI stream chunk (choices missing or empty): " .. chunk_body,
+              vim.log.levels.WARN
+            )
             return nil
           end
         end
@@ -245,11 +244,18 @@ M.opts = {
               -- This can happen if the delta is just a role update or finish_reason, which is fine.
               return "" -- Return empty string to signify no text delta, but not an error.
             else
-              util.notify("Unexpected JSON structure in OpenAI-O1 stream chunk (delta.content missing or not string): " .. chunk_body, vim.log.levels.WARN)
+              util.notify(
+                "Unexpected JSON structure in OpenAI-O1 stream chunk (delta.content missing or not string): "
+                  .. chunk_body,
+                vim.log.levels.WARN
+              )
               return nil
             end
           else
-            util.notify("Unexpected JSON structure in OpenAI-O1 stream chunk (choices missing or empty): " .. chunk_body, vim.log.levels.WARN)
+            util.notify(
+              "Unexpected JSON structure in OpenAI-O1 stream chunk (choices missing or empty): " .. chunk_body,
+              vim.log.levels.WARN
+            )
             return nil
           end
         end
@@ -345,7 +351,10 @@ function M.setup(opts)
   -- Validate selected_model after all options are merged
   if not M.opts.models[M.opts.selected_model] then
     util.notify(
-      string.format("Selected model '%s' is invalid or not found in the available models. Please check your configuration.", M.opts.selected_model),
+      string.format(
+        "Selected model '%s' is invalid or not found in the available models. Please check your configuration.",
+        M.opts.selected_model
+      ),
       vim.log.levels.ERROR
     )
     -- Attempt to set a fallback model
@@ -516,7 +525,12 @@ local function call_api(on_start)
     return
   end
 
-  local prompt = create_user_prompt(request_context.is_visual_mode, request_context.filetype, request_context.snippet, request_context.start_line)
+  local prompt = create_user_prompt(
+    request_context.is_visual_mode,
+    request_context.filetype,
+    request_context.snippet,
+    request_context.start_line
+  )
 
   local current_model_opts = M.opts.models[M.opts.selected_model]
   if not current_model_opts then
@@ -587,94 +601,117 @@ local function call_api(on_start)
     vim.cmd("redraw")
   end
 
----@param chunk string
----@param full_response_table { value: string }
----@param state { event: string }
----@param extract_text_delta_func fun(response: string, state?: { event: string }, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
----@param model_opts ModelOpts
----@param api_opts ApiOpts
----@param global_opts Opts
----@param redraw_func function
----@param redraw_func_params table { full_response: string, is_visual_mode: boolean, end_line: number }
-local function _handle_stream_chunk(chunk, full_response_table, state, extract_text_delta_func, model_opts, api_opts, global_opts, redraw_func, redraw_func_params)
-  if not extract_text_delta_func then
-    util.notify("extract_text_delta is not defined for this API type", vim.log.levels.ERROR, { _replace = true })
-    return
-  end
-  local delta = extract_text_delta_func(chunk, state, model_opts, api_opts, global_opts)
-  if not delta then
-    return
-  end
-  util.notify("Modifying the code...", vim.log.levels.INFO, { timeout = false, _replace = true })
-  full_response_table.value = full_response_table.value .. delta
-  redraw_func_params.full_response = full_response_table.value -- Update the full_response for redraw
-  redraw_func(redraw_func_params.full_response, redraw_func_params.is_visual_mode, redraw_func_params.end_line)
-end
-
----@param response_http table The HTTP response object from curl.
-local function _finalize_stream(response_http)
-  if response_http.status == 200 then
-    util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 }) -- Should replace previous "Modifying..."
-  else
-    local error_message = "API stream finalization error: " .. response_http.status
-    local body_snippet = "N/A"
-    if type(response_http.body) == "string" then
-      body_snippet = string.sub(response_http.body, 1, 200)
-    elseif response_http.body ~= nil then
-      body_snippet = vim.inspect(response_http.body)
-      body_snippet = string.sub(body_snippet, 1, 200)
+  ---@param chunk string
+  ---@param _full_response_table { value: string }
+  ---@param _state { event: string }
+  ---@param extract_text_delta_func fun(response: string, state?: { event: string }, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
+  ---@param model_opts ModelOpts
+  ---@param api_opts ApiOpts
+  ---@param global_opts Opts
+  ---@param redraw_func function
+  ---@param redraw_func_params table { full_response: string, is_visual_mode: boolean, end_line: number }
+  local function _handle_stream_chunk(
+    chunk,
+    _full_response_table,
+    _state,
+    extract_text_delta_func,
+    model_opts,
+    api_opts,
+    global_opts,
+    redraw_func,
+    redraw_func_params
+  )
+    if not extract_text_delta_func then
+      util.notify("extract_text_delta is not defined for this API type", vim.log.levels.ERROR, { _replace = true })
+      return
     end
-    util.notify(
-      error_message .. "\nBody: " .. body_snippet,
-      vim.log.levels.ERROR,
-      { timeout = 5000, _replace = true }
-    )
-  end
-end
-
----@param response_http table The HTTP response object from curl.
----@param full_response_table { value: string }
----@param extract_assistant_response_func fun(response: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
----@param model_opts ModelOpts
----@param api_opts ApiOpts
----@param global_opts Opts
----@param redraw_func function
----@param redraw_func_params table { full_response: string, is_visual_mode: boolean, end_line: number }
-local function _handle_non_streamed_response(response_http, full_response_table, extract_assistant_response_func, model_opts, api_opts, global_opts, redraw_func, redraw_func_params)
-  if response_http.status ~= 200 then
-    local error_message = "API error: " .. response_http.status
-    local body_snippet = "N/A"
-    if type(response_http.body) == "string" then
-      body_snippet = string.sub(response_http.body, 1, 200)
-    elseif response_http.body ~= nil then
-      body_snippet = vim.inspect(response_http.body)
-      body_snippet = string.sub(body_snippet, 1, 200)
+    local delta = extract_text_delta_func(chunk, _state, model_opts, api_opts, global_opts)
+    if not delta then
+      return
     end
-    util.notify(
-      error_message .. "\nBody: " .. body_snippet,
-      vim.log.levels.ERROR,
-      { timeout = 5000, _replace = true }
-    )
-    return
+    util.notify("Modifying the code...", vim.log.levels.INFO, { timeout = false, _replace = true })
+    _full_response_table.value = _full_response_table.value .. delta
+    redraw_func_params.full_response = _full_response_table.value -- Update the full_response for redraw
+    redraw_func(redraw_func_params.full_response, redraw_func_params.is_visual_mode, redraw_func_params.end_line)
   end
 
-  if not extract_assistant_response_func then
-    util.notify("extract_assistant_response is not defined for this API type", vim.log.levels.ERROR, { _replace = true })
-    return
+  ---@param response_http table The HTTP response object from curl.
+  local function _finalize_stream(response_http)
+    if response_http.status == 200 then
+      util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 }) -- Should replace previous "Modifying..."
+    else
+      local error_message = "API stream finalization error: " .. response_http.status
+      local body_snippet = "N/A"
+      if type(response_http.body) == "string" then
+        body_snippet = string.sub(response_http.body, 1, 200)
+      elseif response_http.body ~= nil then
+        body_snippet = vim.inspect(response_http.body)
+        body_snippet = string.sub(body_snippet, 1, 200)
+      end
+      util.notify(
+        error_message .. "\nBody: " .. body_snippet,
+        vim.log.levels.ERROR,
+        { timeout = 5000, _replace = true }
+      )
+    end
   end
 
-  local response_str = response_http.body
-  local response = extract_assistant_response_func(response_str, model_opts, api_opts, global_opts)
-  if not response then
-    util.notify("No response content from the API or failed to extract.", vim.log.levels.ERROR, { _replace = true })
-    return
-  end
+  ---@param response_http table The HTTP response object from curl.
+  ---@param _full_response_table { value: string }
+  ---@param extract_assistant_response_func fun(response: string, model_opts?: ModelOpts, api_opts?: ApiOpts, opts?: Opts): string|nil
+  ---@param model_opts ModelOpts
+  ---@param api_opts ApiOpts
+  ---@param global_opts Opts
+  ---@param redraw_func function
+  ---@param redraw_func_params table { full_response: string, is_visual_mode: boolean, end_line: number }
+  local function _handle_non_streamed_response(
+    response_http,
+    _full_response_table,
+    extract_assistant_response_func,
+    model_opts,
+    api_opts,
+    global_opts,
+    redraw_func,
+    redraw_func_params
+  )
+    if response_http.status ~= 200 then
+      local error_message = "API error: " .. response_http.status
+      local body_snippet = "N/A"
+      if type(response_http.body) == "string" then
+        body_snippet = string.sub(response_http.body, 1, 200)
+      elseif response_http.body ~= nil then
+        body_snippet = vim.inspect(response_http.body)
+        body_snippet = string.sub(body_snippet, 1, 200)
+      end
+      util.notify(
+        error_message .. "\nBody: " .. body_snippet,
+        vim.log.levels.ERROR,
+        { timeout = 5000, _replace = true }
+      )
+      return
+    end
 
-  full_response_table.value = response
-  redraw_func_params.full_response = full_response_table.value -- Update the full_response for redraw
-  redraw_func(redraw_func_params.full_response, redraw_func_params.is_visual_mode, redraw_func_params.end_line)
-  util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
-end
+    if not extract_assistant_response_func then
+      util.notify(
+        "extract_assistant_response is not defined for this API type",
+        vim.log.levels.ERROR,
+        { _replace = true }
+      )
+      return
+    end
+
+    local response_str = response_http.body
+    local response = extract_assistant_response_func(response_str, model_opts, api_opts, global_opts)
+    if not response then
+      util.notify("No response content from the API or failed to extract.", vim.log.levels.ERROR, { _replace = true })
+      return
+    end
+
+    _full_response_table.value = response
+    redraw_func_params.full_response = _full_response_table.value -- Update the full_response for redraw
+    redraw_func(redraw_func_params.full_response, redraw_func_params.is_visual_mode, redraw_func_params.end_line)
+    util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
+  end
 
   on_start()
 
