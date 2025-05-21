@@ -196,26 +196,23 @@ M.opts = {
     },
   },
   models = {
-    ["haiku"] = {
-      model = "claude-3-5-haiku-latest",
-      api_type = "anthropic",
+    ["gemini-2.5-flash-preview"] = { -- Recommended model
+      model = "gemini-2.5-flash-preview-05-20",
+      api_type = "openai",
+      api_key = os.getenv("GEMINI_API_KEY"),
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     },
     ["sonnet"] = {
       model = "claude-3-7-sonnet-latest",
       api_type = "anthropic",
     },
-    ["gpt-4o"] = {
-      model = "gpt-4o",
-      api_type = "openai",
-    },
     ["gpt-4.1"] = {
-      model = "gpt-4.1-2025-04-14",
+      model = "gpt-4.1",
       api_type = "openai",
     },
     ["o4-mini"] = {
       model = "o4-mini",
       api_type = "openai-o1",
-      max_tokens = 20000,
     },
     ["deepseek-v3"] = {
       model = "deepseek-chat",
@@ -225,7 +222,7 @@ M.opts = {
     },
   },
   selected_model = "sonnet",
-  max_tokens = 1024,
+  max_tokens = 32768,
   system_prompt = [[
 You are an AI coding assistant that updates code directly in the editor. Your task is to modify or append code based on the given instructions. You will receive input in the following format:
 
