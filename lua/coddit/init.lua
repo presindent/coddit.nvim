@@ -196,14 +196,19 @@ M.opts = {
     },
   },
   models = {
-    ["gemini-2.5-flash-preview"] = { -- Recommended model
+    ["gemini-2.5-flash-preview"] = { -- Recommended model for most tasks
       model = "gemini-2.5-flash-preview-05-20",
       api_type = "openai",
       api_key = os.getenv("GEMINI_API_KEY"),
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      -- thinking_budget = 16284, --  TODO: Configurable thinking budget for Gemini
     },
     ["sonnet"] = {
-      model = "claude-3-7-sonnet-latest",
+      model = "claude-sonnet-4-20250514",
+      api_type = "anthropic",
+    },
+    ["opus"] = {
+      model = "claude-opus-4-20250514",
       api_type = "anthropic",
     },
     ["gpt-4.1"] = {
