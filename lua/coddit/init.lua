@@ -203,6 +203,12 @@ M.opts = {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
       -- thinking_budget = 16284, --  TODO: Configurable thinking budget for Gemini
     },
+    ["gemini-2.5-pro-preview"] = {
+      model = "gemini-2.5-pro-preview-05-06",
+      api_type = "openai",
+      api_key = os.getenv("GEMINI_API_KEY"),
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    },
     ["sonnet"] = {
       model = "claude-sonnet-4-20250514",
       api_type = "anthropic",
