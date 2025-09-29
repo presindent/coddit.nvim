@@ -196,12 +196,23 @@ M.opts = {
     },
   },
   models = {
-    ["gemini-2.5-flash-preview"] = { -- Recommended model for most tasks
-      model = "gemini-2.5-flash-preview-05-20",
+    ["gemini-2.5-flash"] = {
+      model = "gemini-2.5-flash",
       api_type = "openai",
       api_key = os.getenv("GEMINI_API_KEY"),
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      -- thinking_budget = 16284, --  TODO: Configurable thinking budget for Gemini
+    },
+    ["gemini-flash-latest"] = {
+      model = "gemini-flash-latest",
+      api_type = "openai",
+      api_key = os.getenv("GEMINI_API_KEY"),
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    },
+    ["gemini-flash-lite-latest"] = {
+      model = "gemini-flash-lite-latest",
+      api_type = "openai",
+      api_key = os.getenv("GEMINI_API_KEY"),
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     },
     ["gemini-2.5-pro"] = {
       model = "gemini-2.5-pro",
@@ -211,20 +222,20 @@ M.opts = {
       max_tokens = 65536,
     },
     ["sonnet"] = {
-      model = "claude-sonnet-4-20250514",
+      model = "claude-sonnet-4-5",
       api_type = "anthropic",
     },
-    ["opus"] = {
-      model = "claude-opus-4-20250514",
-      api_type = "anthropic",
-    },
-    ["gpt-4.1"] = {
-      model = "gpt-4.1",
+    ["gpt-5"] = {
+      model = "gpt-5",
       api_type = "openai",
     },
-    ["o4-mini"] = {
-      model = "o4-mini",
-      api_type = "openai-o1",
+    ["gpt-5-mini"] = {
+      model = "gpt-5-mini",
+      api_type = "openai",
+    },
+    ["gpt-5-nano"] = {
+      model = "gpt-5-nano",
+      api_type = "openai",
     },
     ["deepseek-v3.1"] = {
       model = "deepseek-chat",
@@ -233,7 +244,7 @@ M.opts = {
       endpoint = "https://api.deepseek.com/chat/completions",
       max_tokens = 8192,
     },
-    ["deepseek-v3.1-thinking"] = {
+    ["deepseek-reasoner"] = {
       model = "deepseek-reasoner",
       api_type = "openai",
       api_key = os.getenv("DEEPSEEK_API_KEY"),
