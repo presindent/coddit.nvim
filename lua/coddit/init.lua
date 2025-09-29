@@ -203,11 +203,12 @@ M.opts = {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
       -- thinking_budget = 16284, --  TODO: Configurable thinking budget for Gemini
     },
-    ["gemini-2.5-pro-preview"] = {
-      model = "gemini-2.5-pro-preview-05-06",
+    ["gemini-2.5-pro"] = {
+      model = "gemini-2.5-pro",
       api_type = "openai",
       api_key = os.getenv("GEMINI_API_KEY"),
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      max_tokens = 65536,
     },
     ["sonnet"] = {
       model = "claude-sonnet-4-20250514",
@@ -225,11 +226,19 @@ M.opts = {
       model = "o4-mini",
       api_type = "openai-o1",
     },
-    ["deepseek-v3"] = {
+    ["deepseek-v3.1"] = {
       model = "deepseek-chat",
       api_type = "openai",
       api_key = os.getenv("DEEPSEEK_API_KEY"),
       endpoint = "https://api.deepseek.com/chat/completions",
+      max_tokens = 8192,
+    },
+    ["deepseek-v3.1-thinking"] = {
+      model = "deepseek-reasoner",
+      api_type = "openai",
+      api_key = os.getenv("DEEPSEEK_API_KEY"),
+      endpoint = "https://api.deepseek.com/chat/completions",
+      max_tokens = 8192,
     },
   },
   selected_model = "sonnet",
