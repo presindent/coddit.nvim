@@ -225,6 +225,10 @@ M.opts = {
       model = "claude-sonnet-4-5",
       api_type = "anthropic",
     },
+    ["haiku"] = {
+      model = "claude-haiku-4-5",
+      api_type = "anthropic",
+    },
     ["gpt-5"] = {
       model = "gpt-5",
       api_type = "openai",
@@ -252,7 +256,7 @@ M.opts = {
       max_tokens = 8192,
     },
   },
-  selected_model = "sonnet",
+  selected_model = "haiku",
   max_tokens = 32768,
   system_prompt = [[
 You are an AI coding assistant that updates code directly in the editor. Your task is to modify or append code based on the given instructions. You will receive input in the following format:
