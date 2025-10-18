@@ -394,26 +394,29 @@ end
 ---@param snippet string
 ---@param start_line? integer
 ---@return string
-local function create_user_prompt(is_visual_mode, filetype, snippet, start_line)
-  return "<ct_task>\n"
+local function create_user_prompt(is_visual_mode, filetype, snippet, start_line, instructions)
+  return "<ct_language>\n"
+    .. filetype
+    .. "\n</ct_language>\n"
+    .. "<ct_task>\n"
     .. (is_visual_mode and "edit" or "append")
     .. "\n</ct_task>\n"
-    .. "<ct_language>\n"
-    .. filetype
-    .. "\n</ct_language>\n\n<ct_snippet>\n"
+    .. "<ct_instructions>\n"
+    .. instructions
+    .. "\n</ct_instructions>\n\n<ct_snippet>\n"
     .. (is_visual_mode and util.add_line_numbers(snippet, start_line) or snippet)
     .. "\n</ct_snippet>"
 end
 
 ---@param on_start fun()
-local function call_api(on_start)
-  local mode = vim.fn.mode()
-  local filetype = vim.bo.filetype
-  local is_visual_mode = mode == "v" or mode == "V" or mode == " "
-
-  local start_line, end_line = util.get_sel_range()
-  local snippet = get_code_block(start_line, end_line)
-  local prompt = create_user_prompt(is_visual_mode, filetype, snippet, start_line)
+local function call_api(on_start, prompt_ctx)
+  local is_visual_mode = prompt_ctx.is_visual_mode
+  local filetype = prompt_ctx.filetype
+  local start_line = prompt_ctx.start_line
+  local end_line = prompt_ctx.end_line
+  local snippet = prompt_ctx.snippet
+  local instructions = prompt_ctx.instructions
+  local prompt = create_user_prompt(is_visual_mode, filetype, snippet, start_line, instructions)
 
   local model_opts = M.opts.models[M.opts.selected_model] ---@type ModelOpts
   local api_opts = M.opts.api_types[model_opts.api_type] ---@type ApiOpts
@@ -536,19 +539,39 @@ function M.call(toggle_show_diff)
 
   M.main_bufnr = vim.fn.bufnr()
 
-  call_api(function()
-    if show_diff then
-      local filetype = vim.bo.filetype
-      M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
-      if not M.dup_bufnr or M.dup_bufnr == -1 then
-        util.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
-        return
+  local mode = vim.fn.mode()
+  local is_visual_mode = mode == "v" or mode == "V" or mode == " "
+  local filetype = vim.bo.filetype
+  local start_line, end_line = util.get_sel_range()
+  local snippet = get_code_block(start_line, end_line)
+
+  vim.ui.input({ prompt = "Coddit instructions: " }, function(input)
+    local instructions = util.trim(input or "")
+    if instructions == "" then
+      util.notify("Operation cancelled: no instructions provided.", vim.log.levels.WARN)
+      return
+    end
+
+    call_api(function()
+      if show_diff then
+        M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
+        if not M.dup_bufnr or M.dup_bufnr == -1 then
+          util.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
+          return
+        end
+        vim.api.nvim_set_current_buf(M.main_bufnr)
       end
-      vim.api.nvim_set_current_buf(M.main_bufnr)
-    end
-    if show_diff then
-      open_diff_view()
-    end
+      if show_diff then
+        open_diff_view()
+      end
+    end, {
+      is_visual_mode = is_visual_mode,
+      filetype = filetype,
+      start_line = start_line,
+      end_line = end_line,
+      snippet = snippet,
+      instructions = instructions,
+    })
   end)
 end
 
