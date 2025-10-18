@@ -241,7 +241,7 @@ M.opts = {
       model = "gpt-5-nano",
       api_type = "openai",
     },
-    ["deepseek-v3.1"] = {
+    ["deepseek-v3.2-exp"] = {
       model = "deepseek-chat",
       api_type = "openai",
       api_key = os.getenv("DEEPSEEK_API_KEY"),
