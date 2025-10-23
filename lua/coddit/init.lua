@@ -411,6 +411,7 @@ end
 ---@param on_start fun()
 local function call_api(on_start, prompt_ctx)
   local is_visual_mode = prompt_ctx.is_visual_mode
+  local show_diff = prompt_ctx.show_diff
   local filetype = prompt_ctx.filetype
   local start_line = prompt_ctx.start_line
   local end_line = prompt_ctx.end_line
@@ -510,6 +511,11 @@ local function call_api(on_start, prompt_ctx)
             { timeout = 3000 }
           )
         end
+        -- Cleanup duplicate buffer if it was created for visual mode without diff
+        if is_visual_mode and not show_diff and M.dup_bufnr ~= -1 then
+          vim.api.nvim_buf_delete(M.dup_bufnr, { force = true })
+          M.dup_bufnr = -1
+        end
       end)
     end or function(response_http)
       vim.schedule(function()
@@ -522,6 +528,11 @@ local function call_api(on_start, prompt_ctx)
         full_response = response
         redraw()
         util.notify("Done!", vim.log.levels.INFO, { timeout = 3000 })
+        -- Cleanup duplicate buffer if it was created for visual mode without diff
+        if is_visual_mode and not show_diff and M.dup_bufnr ~= -1 then
+          vim.api.nvim_buf_delete(M.dup_bufnr, { force = true })
+          M.dup_bufnr = -1
+        end
       end)
     end,
     error_callback = function(err)
@@ -553,7 +564,7 @@ function M.call(toggle_show_diff)
     end
 
     call_api(function()
-      if show_diff then
+      if show_diff or is_visual_mode then
         M.dup_bufnr = util.duplicate_buffer(M.main_bufnr, filetype)
         if not M.dup_bufnr or M.dup_bufnr == -1 then
           util.notify("Unable to duplicate the buffer for diff.", vim.log.levels.ERROR)
@@ -566,6 +577,7 @@ function M.call(toggle_show_diff)
       end
     end, {
       is_visual_mode = is_visual_mode,
+      show_diff = show_diff,
       filetype = filetype,
       start_line = start_line,
       end_line = end_line,
