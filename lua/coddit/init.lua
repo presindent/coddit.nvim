@@ -540,7 +540,7 @@ function M.call(toggle_show_diff)
   M.main_bufnr = vim.fn.bufnr()
 
   local mode = vim.fn.mode()
-  local is_visual_mode = mode == "v" or mode == "V" or mode == " "
+  local is_visual_mode = mode == "v" or mode == "V" or mode == "\22"
   local filetype = vim.bo.filetype
   local start_line, end_line = util.get_sel_range()
   local snippet = get_code_block(start_line, end_line)

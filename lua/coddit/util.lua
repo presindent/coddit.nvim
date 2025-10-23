@@ -4,7 +4,7 @@ local notif_id = nil
 
 function M.is_visual_mode()
   local mode = vim.fn.mode()
-  return mode == "v" or mode == "V" or mode == " "
+  return mode == "v" or mode == "V" or mode == "\22"
 end
 
 function M.switch_to_buf_win(bufnr)
