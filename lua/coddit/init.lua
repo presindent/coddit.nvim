@@ -255,6 +255,13 @@ M.opts = {
       endpoint = "https://api.deepseek.com/chat/completions",
       max_tokens = 8192,
     },
+    ["grok-code-fast-1"] = {
+      model = "grok-code-fast-1",
+      api_type = "openai",
+      api_key = os.getenv("XAI_API_KEY"),
+      endpoint = "https://api.x.ai/v1/chat/completions",
+      max_tokens = 256000,
+    },
   },
   selected_model = "haiku",
   max_tokens = 32768,
