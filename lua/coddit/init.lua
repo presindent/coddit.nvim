@@ -196,12 +196,6 @@ M.opts = {
     },
   },
   models = {
-    ["gemini-2.5-flash"] = {
-      model = "gemini-2.5-flash",
-      api_type = "openai",
-      api_key = os.getenv("GEMINI_API_KEY"),
-      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    },
     ["gemini-flash-latest"] = {
       model = "gemini-flash-latest",
       api_type = "openai",
