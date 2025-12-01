@@ -215,6 +215,13 @@ M.opts = {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
       max_tokens = 65536,
     },
+    ["gemini-3-pro-preview"] = {
+      model = "gemini-3-pro-preview",
+      api_type = "openai",
+      api_key = os.getenv("GEMINI_API_KEY"),
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      max_tokens = 65536,
+    },
     ["sonnet"] = {
       model = "claude-sonnet-4-5",
       api_type = "anthropic",
