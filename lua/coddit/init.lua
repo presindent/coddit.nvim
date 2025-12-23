@@ -230,16 +230,20 @@ M.opts = {
       model = "claude-haiku-4-5",
       api_type = "anthropic",
     },
-    ["gpt-5"] = {
-      model = "gpt-5",
+    ["opus"] = {
+      model = "claude-opus-4-5",
+      api_type = "anthropic",
+    },
+    ["gpt-5.2"] = {
+      model = "gpt-5.2",
       api_type = "openai",
     },
-    ["gpt-5-mini"] = {
-      model = "gpt-5-mini",
+    ["gpt-5.1-codex-mini"] = {
+      model = "gpt-5.1-codex-mini",
       api_type = "openai",
     },
-    ["gpt-5-nano"] = {
-      model = "gpt-5-nano",
+    ["gpt-5.1-codex-max"] = {
+      model = "gpt-5.1-codex-max",
       api_type = "openai",
     },
     ["deepseek-chat"] = {
@@ -255,13 +259,6 @@ M.opts = {
       api_key = os.getenv("DEEPSEEK_API_KEY"),
       endpoint = "https://api.deepseek.com/chat/completions",
       max_tokens = 8192,
-    },
-    ["grok-code-fast-1"] = {
-      model = "grok-code-fast-1",
-      api_type = "openai",
-      api_key = os.getenv("XAI_API_KEY"),
-      endpoint = "https://api.x.ai/v1/chat/completions",
-      max_tokens = 256000,
     },
   },
   selected_model = "haiku",
