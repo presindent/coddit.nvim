@@ -196,24 +196,11 @@ M.opts = {
     },
   },
   models = {
-    ["gemini-flash-latest"] = {
-      model = "gemini-flash-latest",
+    ["gemini-3-flash-preview"] = {
+      model = "gemini-3-flash-preview",
       api_type = "openai",
       api_key = os.getenv("GEMINI_API_KEY"),
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    },
-    ["gemini-flash-lite-latest"] = {
-      model = "gemini-flash-lite-latest",
-      api_type = "openai",
-      api_key = os.getenv("GEMINI_API_KEY"),
-      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    },
-    ["gemini-2.5-pro"] = {
-      model = "gemini-2.5-pro",
-      api_type = "openai",
-      api_key = os.getenv("GEMINI_API_KEY"),
-      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      max_tokens = 65536,
     },
     ["gemini-3-pro-preview"] = {
       model = "gemini-3-pro-preview",
